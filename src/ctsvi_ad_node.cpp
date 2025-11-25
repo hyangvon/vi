@@ -386,12 +386,12 @@ int main(int argc, char** argv)
         avg_time*1e3);
 
 
-    write_csv("src/ctsvi/csv/ctsvi_ad/q_history.csv", q_history);
-    write_csv_scalar_series("src/ctsvi/csv/ctsvi_ad/time_history.csv", time_history);
-    write_csv_scalar_series("src/ctsvi/csv/ctsvi_ad/energy_history.csv", energy_history);
-    write_csv_scalar_series("src/ctsvi/csv/ctsvi_ad/delta_energy_history.csv", delta_energy_history);
-    write_csv_scalar_series("src/ctsvi/csv/ctsvi_ad/energy_T_history.csv", energy_T_history);
-    write_csv_scalar_series("src/ctsvi/csv/ctsvi_ad/energy_U_history.csv", energy_U_history);
+    write_csv("src/vi/csv/ctsvi_ad/q_history.csv", q_history);
+    write_csv_scalar_series("src/vi/csv/ctsvi_ad/time_history.csv", time_history);
+    write_csv_scalar_series("src/vi/csv/ctsvi_ad/energy_history.csv", energy_history);
+    write_csv_scalar_series("src/vi/csv/ctsvi_ad/delta_energy_history.csv", delta_energy_history);
+    write_csv_scalar_series("src/vi/csv/ctsvi_ad/energy_T_history.csv", energy_T_history);
+    write_csv_scalar_series("src/vi/csv/ctsvi_ad/energy_U_history.csv", energy_U_history);
 
     RCLCPP_INFO(node->get_logger(), "Saved CSVs.");
 
