@@ -438,12 +438,12 @@ int main(int argc, char** argv)
         avg_time*1e3);
 
     // Save CSVs
-    write_csv("src/ctsvi/csv/ctsvi/q_history.csv", q_history);
-    write_csv_scalar_series("src/ctsvi/csv/ctsvi/time_history.csv", time_history);
-    write_csv_scalar_series("src/ctsvi/csv/ctsvi/energy_history.csv", energy_history);
-    write_csv_scalar_series("src/ctsvi/csv/ctsvi/energy_T_history.csv", energy_T_history);
-    write_csv_scalar_series("src/ctsvi/csv/ctsvi/energy_U_history.csv", energy_U_history);
-    write_csv_scalar_series("src/ctsvi/csv/ctsvi/delta_energy_history.csv", delta_energy_history);
+    write_csv("src/vi/csv/ctsvi/q_history.csv", q_history);
+    write_csv_scalar_series("src/vi/csv/ctsvi/time_history.csv", time_history);
+    write_csv_scalar_series("src/vi/csv/ctsvi/energy_history.csv", energy_history);
+    write_csv_scalar_series("src/vi/csv/ctsvi/energy_T_history.csv", energy_T_history);
+    write_csv_scalar_series("src/vi/csv/ctsvi/energy_U_history.csv", energy_U_history);
+    write_csv_scalar_series("src/vi/csv/ctsvi/delta_energy_history.csv", delta_energy_history);
     // momentum: write per-row
     // write_csv("src/ctsvi/csv/ctsvi/momentum_history.csv", momentum_history);
 

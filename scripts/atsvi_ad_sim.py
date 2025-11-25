@@ -31,7 +31,7 @@ def run_simulation():
             print(f"Error output: {e.stderr}")
         return False
 
-def plot_results():
+def plot_results(tag, dpi_set):
     """绘制仿真结果"""
     print("Generating plots...")
 
@@ -62,7 +62,10 @@ def plot_results():
     print(f"Loaded q_history with {nq} DOFs, {q_history.shape[0]} time steps")
 
     # 创建图形窗口
-    plt.ion()  # 开启交互模式
+    # plt.ion()  # 开启交互模式
+
+    save_dir = f"/home/space/ros2_ws/dynamic_ws/src/vi/fig/{tag}"
+    os.makedirs(save_dir, exist_ok=True)   # 自动创建目录
 
     # ---------- 2. 绘制关节角随时间 ----------
     plt.figure(figsize=(10, 5))
@@ -74,7 +77,11 @@ def plot_results():
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    filename = f"q_{tag}.png"
+    save_path = os.path.join(save_dir, filename)
+    plt.savefig(save_path, dpi = dpi_set)
+    print("Saved:", save_path)
+    # plt.show()
 
     # ---------- 3. 绘制能量曲线 ----------
     plt.figure(figsize=(10, 5))
@@ -87,7 +94,11 @@ def plot_results():
     plt.grid(True)
     # plt.ylim(-0.001, 0.001)
     plt.tight_layout()
-    plt.show()
+    filename = f"energy_{tag}.png"
+    save_path = os.path.join(save_dir, filename)
+    plt.savefig(save_path, dpi = dpi_set)
+    print("Saved:", save_path)
+    # plt.show()
 
     # ---------- 4. 相平面图（q vs qdot） ----------
     dt = time[1] - time[0]
@@ -101,7 +112,11 @@ def plot_results():
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    filename = f"phase_{tag}.png"
+    save_path = os.path.join(save_dir, filename)
+    plt.savefig(save_path, dpi = dpi_set)
+    print("Saved:", save_path)
+    # plt.show()
 
     # ---------- 5. 绘制timestep ----------
     plt.figure(figsize=(10, 5))
@@ -130,7 +145,7 @@ def main():
         return 1
 
     # 绘制结果
-    if not plot_results():
+    if not plot_results("atsvi_ad", 1000):
         return 1
 
     print("All tasks completed successfully!")
