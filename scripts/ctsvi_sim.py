@@ -8,12 +8,12 @@ import matplotlib.pyplot as plt
 
 def run_simulation():
     """运行 C++ 仿真节点"""
-    config_file = '/home/space/pino_clion/pino_ws/src/ctsvi/config/ctsvi_params.yaml'
+    config_file = '/home/space/ros2_ws/dynamic_ws/src/vi/config/ctsvi_params.yaml'
 
     print("Starting Variational Integrator simulation...")
     try:
         result = subprocess.run([
-            'ros2', 'run', 'ctsvi', 'ctsvi_node',
+            'ros2', 'run', 'vi', 'ctsvi_node',
             '--ros-args', '--params-file', config_file
         ], check=True)
 
@@ -36,7 +36,7 @@ def plot_results():
     print("Generating plots...")
 
     # ---------- 1. 读取数据 ----------
-    csv_dir = '/home/space/pino_clion/pino_ws/src/ctsvi/csv/ctsvi/'
+    csv_dir = '/home/space/ros2_ws/dynamic_ws/src/vi/csv/ctsvi/'
 
     if not os.path.exists(os.path.join(csv_dir, 'q_history.csv')):
         print("CSV files not found. Simulation may have failed.")
