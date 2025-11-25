@@ -601,11 +601,11 @@ int main(int argc, char** argv)
     RCLCPP_INFO(node->get_logger(), "Simulation finished, wall time: %f s, Average step time: %f ms", total_elapsed, avg_time*1e3);
 
     // Save CSVs
-    write_csv("src/ctsvi/csv/atsvi_ad/q_history.csv", q_history);
-    write_csv_scalar_series("src/ctsvi/csv/atsvi_ad/time_history.csv", time_history);
-    write_csv_scalar_series("src/ctsvi/csv/atsvi_ad/energy_history.csv", energy_history);
-    write_csv_scalar_series("src/ctsvi/csv/atsvi_ad/h_history.csv", h_history);
-    write_csv_scalar_series("src/ctsvi/csv/atsvi_ad/delta_energy_history.csv", delta_energy_history);
+    write_csv("src/vi/csv/atsvi_ad/q_history.csv", q_history);
+    write_csv_scalar_series("src/vi/csv/atsvi_ad/time_history.csv", time_history);
+    write_csv_scalar_series("src/vi/csv/atsvi_ad/energy_history.csv", energy_history);
+    write_csv_scalar_series("src/vi/csv/atsvi_ad/h_history.csv", h_history);
+    write_csv_scalar_series("src/vi/csv/atsvi_ad/delta_energy_history.csv", delta_energy_history);
 
     RCLCPP_INFO(node->get_logger(), "Saved CSVs.");
 
