@@ -1,0 +1,121 @@
+<?xml version="1.0"?>
+<robot name="double_pendulum">
+
+  <!-- 材料定义 -->
+  <material name="blue">
+    <color rgba="0 0 0.8 1"/>
+  </material>
+  <material name="red">
+    <color rgba="0.8 0 0 1"/>
+  </material>
+  <material name="green">
+    <color rgba="0 0.8 0 1"/>
+  </material>
+
+  <!-- 1. 基座链接 -->
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <cylinder length="0.1" radius="0.05"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="0.1" radius="0.05"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="2.0"/>
+      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+    </inertial>
+  </link>
+
+  <!-- 2. 第一摆杆 -->
+  <link name="first_link">
+    <visual>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+      <material name="red"/>
+      <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+      <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 -0.5"/>
+      <inertia ixx="0.05" ixy="0.0" ixz="0.0" iyy="0.05" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <!-- 3. 第二摆杆 -->
+  <link name="second_link">
+    <visual>
+      <geometry>
+        <cylinder length="0.8" radius="0.015"/>
+      </geometry>
+      <material name="green"/>
+      <origin xyz="0 0 -0.4" rpy="0 0 0"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="0.8" radius="0.015"/>
+      </geometry>
+      <origin xyz="0 0 -0.4" rpy="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="0.3"/>
+      <origin xyz="0 0 -0.4"/>
+      <inertia ixx="0.02" ixy="0.0" ixz="0.0" iyy="0.02" iyz="0.0" izz="0.0005"/>
+    </inertial>
+  </link>
+
+  <!-- 4. 末端质量块 -->
+  <link name="end_effector">
+    <visual>
+      <geometry>
+        <sphere radius="0.04"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <geometry>
+        <sphere radius="0.04"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.2"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <!-- 关节定义 -->
+  <joint name="base_to_first" type="revolute">
+    <parent link="base_link"/>
+    <child link="first_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.14" upper="3.14" effort="10.0" velocity="10.0"/>
+  </joint>
+
+  <joint name="first_to_second" type="revolute">
+    <parent link="first_link"/>
+    <child link="second_link"/>
+    <origin xyz="0 0 -1.0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.14" upper="3.14" effort="10.0" velocity="10.0"/>
+  </joint>
+
+  <joint name="second_to_end" type="fixed">
+    <parent link="second_link"/>
+    <child link="end_effector"/>
+    <origin xyz="0 0 -0.8" rpy="0 0 0"/>
+  </joint>
+
+</robot>

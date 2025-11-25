@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<robot name="simple_pendulum">
+    <material name="blue">
+      <color rgba="0 0 1 1"/>
+    </material>
+
+    <material name="red">
+      <color rgba="1 0 0 1"/>
+    </material>
+
+    <material name="green">
+      <color rgba="0 1 0 1"/>
+    </material>
+
+  <!-- 基座链接 -->
+  <link name="base_link">
+    <visual>
+      <geometry><cylinder length="0.1" radius="0.05"/></geometry>
+      <material name="blue"/>
+    </visual>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <!-- 摆锤链接（包含摆杆质量） -->
+  <link name="pendulum_bob">
+    <visual>
+      <geometry><sphere radius="0.05"/></geometry>
+      <material name="red"/>
+      <origin xyz="0 0 -1.0" rpy="0 0 0"/>  <!-- 摆锤在悬挂点下方1米 -->
+    </visual>
+    <inertial>
+      <mass value="0.6"/>  <!-- 摆杆质量 + 摆锤质量 -->
+      <origin xyz="0 0 -1.0"/>
+      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+    </inertial>
+  </link>
+
+  <!-- 转动关节 -->
+  <joint name="pendulum_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="pendulum_bob"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.14" upper="3.14" effort="10.0" velocity="10.0"/>
+  </joint>
+
+</robot>

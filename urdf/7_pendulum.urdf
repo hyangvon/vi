@@ -1,0 +1,250 @@
+<?xml version="1.0"?>
+<robot name="planar_3r_pendulum">
+
+  <!-- ===== 世界固定基座 ===== -->
+  <link name="world"/>
+
+  <joint name="world_to_base" type="fixed">
+    <parent link="world"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===== 材料定义 ===== -->
+  <material name="blue">
+    <color rgba="0 0 0.8 1"/>
+  </material>
+  <material name="red">
+    <color rgba="0.8 0 0 1"/>
+  </material>
+  <material name="green">
+    <color rgba="0 0.8 0 1"/>
+  </material>
+
+  <!-- ===== 1. 基座 ===== -->
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <cylinder length="0.1" radius="0.05"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder length="0.1" radius="0.05"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="2.0"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+  </link>
+
+  <!-- ===== 2. 第一摆杆 ===== -->
+  <link name="link1">
+    <visual>
+      <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 -0.5"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 -0.5"/>
+      <inertia ixx="0.05" ixy="0" ixz="0" iyy="0.05" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <!-- ===== 3. 第二摆杆 ===== -->
+  <link name="link2">
+    <visual>
+      <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 -0.5"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 -0.5"/>
+      <inertia ixx="0.05" ixy="0" ixz="0" iyy="0.05" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <!-- ===== 4. 第三摆杆 ===== -->
+  <link name="link3">
+    <visual>
+      <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 -0.5"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 -0.5"/>
+      <inertia ixx="0.05" ixy="0" ixz="0" iyy="0.05" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <link name="link4">
+    <visual>
+      <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 -0.5"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 -0.5"/>
+      <inertia ixx="0.05" ixy="0" ixz="0" iyy="0.05" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <link name="link5">
+    <visual>
+      <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 -0.5"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 -0.5"/>
+      <inertia ixx="0.05" ixy="0" ixz="0" iyy="0.05" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <link name="link6">
+    <visual>
+      <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 -0.5"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 -0.5"/>
+      <inertia ixx="0.05" ixy="0" ixz="0" iyy="0.05" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <link name="link7">
+    <visual>
+      <origin xyz="0 0 -0.5" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 -0.5"/>
+      <geometry>
+        <cylinder length="1.0" radius="0.02"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 -0.5"/>
+      <inertia ixx="0.05" ixy="0" ixz="0" iyy="0.05" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <!-- ===== 关节定义（均绕Y轴旋转） ===== -->
+  <joint name="joint1" type="revolute">
+    <parent link="base_link"/>
+    <child link="link1"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.14" upper="3.14" effort="100.0" velocity="10.0"/>
+  </joint>
+
+  <joint name="joint2" type="revolute">
+    <parent link="link1"/>
+    <child link="link2"/>
+    <origin xyz="0 0 -1.0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.14" upper="3.14" effort="100.0" velocity="10.0"/>
+  </joint>
+
+  <joint name="joint3" type="revolute">
+    <parent link="link2"/>
+    <child link="link3"/>
+    <origin xyz="0 0 -1.0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.14" upper="3.14" effort="100.0" velocity="10.0"/>
+  </joint>
+
+  <joint name="joint4" type="revolute">
+    <parent link="link3"/>
+    <child link="link4"/>
+    <origin xyz="0 0 -1.0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.14" upper="3.14" effort="100.0" velocity="10.0"/>
+  </joint>
+
+  <joint name="joint5" type="revolute">
+    <parent link="link4"/>
+    <child link="link5"/>
+    <origin xyz="0 0 -1.0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.14" upper="3.14" effort="100.0" velocity="10.0"/>
+  </joint>
+
+  <joint name="joint6" type="revolute">
+    <parent link="link5"/>
+    <child link="link6"/>
+    <origin xyz="0 0 -1.0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.14" upper="3.14" effort="100.0" velocity="10.0"/>
+  </joint>
+
+  <joint name="joint7" type="revolute">
+    <parent link="link6"/>
+    <child link="link7"/>
+    <origin xyz="0 0 -1.0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.14" upper="3.14" effort="100.0" velocity="10.0"/>
+  </joint>
+
+</robot>

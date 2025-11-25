@@ -1,0 +1,7 @@
+ctsvi_node:
+  ros__parameters:
+    q_init: 0.1
+    timestep: 0.01
+    duration: 15.0
+    eps_diff: 1e-6
+    urdf_path: /home/space/ros2_ws/dynamic_ws/src/vi/urdf/7_pendulum.urdf
