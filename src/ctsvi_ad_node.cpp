@@ -364,7 +364,6 @@ int main(int argc, char** argv)
 
     auto [ee_pos1, _ee_rot1] = compute_end_effector_pose(model, data, link_tcp_id, q_curr);
     ee_history.push_back(ee_pos1);
-    RCLCPP_INFO(node->get_logger(), "ee = %.2f, %.2f, %.2f", ee_pos1[0], ee_pos1[1], ee_pos1[2]);
 
     std::vector<double> runtimes;
 

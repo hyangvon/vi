@@ -20,6 +20,7 @@ namespace Eigen {
 #include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/algorithm/aba.hpp>
 #include <pinocchio/algorithm/energy.hpp>
+#include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/multibody/model.hpp>
 #include <pinocchio/multibody/data.hpp>
 
@@ -46,6 +47,26 @@ using Vec  = Eigen::VectorXd;
 using Mat  = Eigen::MatrixXd;
 using ModelAD = pinocchio::ModelTpl<ADScalar>;
 using DataAD  = pinocchio::DataTpl<ADScalar>;
+
+// 计算末端位姿（位置 + 旋转矩阵）
+std::pair<Eigen::Vector3d, Eigen::Matrix3d>
+compute_end_effector_pose(const Model &model,
+                          Data &data,
+                          int frame_id,
+                          const Vec &q)
+{
+    // Update joint FK
+    pinocchio::forwardKinematics(model, data, q);
+
+    // Update placements of all joints and frames
+    // pinocchio::updateGlobalPlacements(model, data);
+    pinocchio::updateFramePlacements(model, data);
+
+    Eigen::Vector3d ee_pos = data.oMf[frame_id].translation();
+    Eigen::Matrix3d ee_rot = data.oMf[frame_id].rotation();
+
+    return {ee_pos, ee_rot};
+}
 
 // ---------- double helpers (non-AD) ----------
 Mat inertia_matrix(const Model &model, Data &data, const Vec &q)
@@ -423,6 +444,17 @@ void write_csv_scalar_series(const std::string &filename, const std::vector<doub
     for (double v : rows) ofs << std::setprecision(15) << v << "\n";
 }
 
+void write_csv_3d(const std::string &filename,
+                  const std::vector<Eigen::Vector3d> &rows)
+{
+    std::ofstream ofs(filename);
+    for (const auto &v : rows)
+    {
+        ofs << std::setprecision(15)
+            << v(0) << "," << v(1) << "," << v(2) << "\n";
+    }
+}
+
 // ---------- Main ----------
 int main(int argc, char** argv)
 {
@@ -457,6 +489,15 @@ int main(int argc, char** argv)
     }
     Data data(model);
     model.gravity.linear(Eigen::Vector3d(0,0,-9.81));
+
+    // 获取末端 frame id
+    int link_tcp_id = model.getFrameId("link_tcp");
+    RCLCPP_INFO(node->get_logger(), "link_tcp_id=%d:", link_tcp_id);
+    if (link_tcp_id == -1) {
+        RCLCPP_ERROR(node->get_logger(), "TCP not found!");
+        return 1;
+    }
+
     RCLCPP_INFO(node->get_logger(), "Model has nq=%d nv=%d", model.nq, model.nv);
 
     // build AD model/data
@@ -464,6 +505,7 @@ int main(int argc, char** argv)
     DataAD data_ad(model_ad);
 
     int n = model.nq;
+    int n_steps = static_cast<int>(duration / timestep);
 
     // initial conditions
     Vec q_prev = Vec::Constant(n, q_init);
@@ -476,6 +518,7 @@ int main(int argc, char** argv)
     std::vector<double> delta_energy_history;
     std::vector<double> h_history;
     std::vector<double> runtimes;
+    std::vector<Eigen::Vector3d> ee_history;
 
     time_history.push_back(0.0);
     q_history.push_back(q_prev);
@@ -490,6 +533,9 @@ int main(int argc, char** argv)
     double total_energy = T0 + U0;
     energy_history.push_back(total_energy);
     delta_energy_history.push_back(energy_history.back() - energy_history.front());
+
+    auto [ee_pos0, ee_rot0] = compute_end_effector_pose(model, data, link_tcp_id, q_prev);
+    ee_history.push_back(ee_pos0);
 
     // initial implicit VI step (use VI_init_ad)
     // auto [q_curr, info_init] = VI_init_ad(model, data, model_ad, data_ad, q_prev, v_prev, tau_k, timestep, eps_diff);
@@ -526,14 +572,17 @@ int main(int argc, char** argv)
     total_energy = T + U;
     energy_history.push_back(total_energy);
     delta_energy_history.push_back(energy_history.back() - energy_history.front());
-    
+
+    auto [ee_pos1, _ee_rot1] = compute_end_effector_pose(model, data, link_tcp_id, q_curr);
+    ee_history.push_back(ee_pos1);
+
     double t_cur = 0.0;
     t_cur += timestep; // we have advanced to q_curr at t = timestep
     time_history.push_back(timestep);
     h_history.push_back(timestep);
 
-    int max_steps = std::max((int)(duration / h_min) + 10, 1000);
-    for (int step=0; step < max_steps -1  && t_cur < duration - 1e-12; ++step)
+    // int max_steps = std::max((int)(duration / h_min) + 10, 1000);
+    for (int step=0; step < n_steps -1  && t_cur < duration - 1e-12; ++step)
     {
         auto t0 = high_resolution_clock::now();
 
@@ -574,6 +623,9 @@ int main(int argc, char** argv)
         energy_history.push_back(total_energy);
         delta_energy_history.push_back(energy_history.back() - energy_history.front());
 
+        auto [ee_pos, ee_rot] = compute_end_effector_pose(model, data, link_tcp_id, q_next);
+        ee_history.push_back(ee_pos);
+
         auto t1 = high_resolution_clock::now();
         double elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
         runtimes.push_back(elapsed);
@@ -595,6 +647,9 @@ int main(int argc, char** argv)
     }
     std::cout << "\n";
 
+    // if (!time_history.empty()) {
+    //     time_history.pop_back();
+    // }
     auto t_end = high_resolution_clock::now();
     double total_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t_end - t_start).count();
     double avg_time = !runtimes.empty() ? std::accumulate(runtimes.begin(), runtimes.end(), 0.0) / runtimes.size() : 0.0;
@@ -606,6 +661,7 @@ int main(int argc, char** argv)
     write_csv_scalar_series("src/vi/csv/atsvi_ad/energy_history.csv", energy_history);
     write_csv_scalar_series("src/vi/csv/atsvi_ad/h_history.csv", h_history);
     write_csv_scalar_series("src/vi/csv/atsvi_ad/delta_energy_history.csv", delta_energy_history);
+    write_csv_3d("src/vi/csv/atsvi_ad/ee_history.csv", ee_history);
 
     RCLCPP_INFO(node->get_logger(), "Saved CSVs.");
 
