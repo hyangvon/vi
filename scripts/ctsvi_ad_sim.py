@@ -46,6 +46,7 @@ def plot_results(tag, dpi_set):
         q_history = np.loadtxt(os.path.join(csv_dir, 'q_history.csv'), delimiter=',')
         if q_history.ndim == 1:
             q_history = q_history.reshape(-1, 1)
+        tcp = np.loadtxt(os.path.join(csv_dir, 'ee_history.csv'), delimiter=',')
         # energy = np.loadtxt(os.path.join(csv_dir, 'energy_history.csv'), delimiter=',')
         delta_energy = np.loadtxt(os.path.join(csv_dir, 'delta_energy_history.csv'), delimiter=',')
         energy_T = np.loadtxt(os.path.join(csv_dir, 'energy_T_history.csv'), delimiter=',')
@@ -116,6 +117,24 @@ def plot_results(tag, dpi_set):
     plt.grid(True)
     plt.tight_layout()
     filename = f"phase_{tag}.png"
+    save_path = os.path.join(save_dir, filename)
+    plt.savefig(save_path, dpi = dpi_set)
+    print("Saved:", save_path)
+    # plt.show()
+
+    # ---------- 5. position xyz ----------
+    plt.figure(figsize=(10, 5))
+    plt.plot(time, tcp[0:, 0], label=f'px')
+    # plt.plot(time, tcp[0:, 1], label=f'py')
+    plt.plot(time, tcp[0:, 2], label=f'pz')
+    plt.xlabel('Time [s]')
+    plt.ylabel('Position [m]')
+    plt.title('TCP Position')
+    plt.legend()
+    plt.grid(True)
+    plt.ylim(-8, 3)
+    plt.tight_layout()
+    filename = f"tcp_{tag}.png"
     save_path = os.path.join(save_dir, filename)
     plt.savefig(save_path, dpi = dpi_set)
     print("Saved:", save_path)

@@ -190,6 +190,13 @@
     </inertial>
   </link>
 
+  <link name="link_tcp">
+    <visual>
+      <geometry><sphere radius="0.03"/></geometry>
+      <material name="green"/>
+    </visual>
+  </link>
+
   <!-- ===== 关节定义（均绕Y轴旋转） ===== -->
   <joint name="joint1" type="revolute">
     <parent link="base_link"/>
@@ -245,6 +252,12 @@
     <origin xyz="0 0 -1.0" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
     <limit lower="-3.14" upper="3.14" effort="100.0" velocity="10.0"/>
+  </joint>
+
+  <joint name="joint_tcp" type="fixed">
+    <parent link="link7"/>
+    <child link="link_tcp"/>
+    <origin xyz="0 0 -1.0" rpy="0 0 0"/>
   </joint>
 
 </robot>

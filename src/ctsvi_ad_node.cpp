@@ -20,6 +20,7 @@ namespace Eigen {
 #include <pinocchio/algorithm/crba.hpp>
 #include <pinocchio/algorithm/kinematics.hpp>
 #include <pinocchio/algorithm/energy.hpp>
+#include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/multibody/model.hpp>
 #include <pinocchio/multibody/data.hpp>
 
@@ -44,6 +45,26 @@ using Vec  = Eigen::VectorXd;
 using Mat  = Eigen::MatrixXd;
 using ModelAD = pinocchio::ModelTpl<ADScalar>;
 using DataAD  = pinocchio::DataTpl<ADScalar>;
+
+// 计算末端位姿（位置 + 旋转矩阵）
+std::pair<Eigen::Vector3d, Eigen::Matrix3d>
+compute_end_effector_pose(const Model &model,
+                          Data &data,
+                          int frame_id,
+                          const Vec &q)
+{
+    // Update joint FK
+    pinocchio::forwardKinematics(model, data, q);
+
+    // Update placements of all joints and frames
+    // pinocchio::updateGlobalPlacements(model, data);
+    pinocchio::updateFramePlacements(model, data);
+
+    Eigen::Vector3d ee_pos = data.oMf[frame_id].translation();
+    Eigen::Matrix3d ee_rot = data.oMf[frame_id].rotation();
+
+    return {ee_pos, ee_rot};
+}
 
 // ---------- double 版本辅助（用于能量输出等） ----------
 Mat inertia_matrix(const Model &model, Data &data, const Vec &q)
@@ -235,6 +256,17 @@ void write_csv_scalar_series(const std::string &filename, const std::vector<doub
     for (double v : rows) ofs << std::setprecision(15) << v << "\n";
 }
 
+void write_csv_3d(const std::string &filename,
+                  const std::vector<Eigen::Vector3d> &rows)
+{
+    std::ofstream ofs(filename);
+    for (const auto &v : rows)
+    {
+        ofs << std::setprecision(15)
+            << v(0) << "," << v(1) << "," << v(2) << "\n";
+    }
+}
+
 // ---------- Main ----------
 int main(int argc, char** argv)
 {
@@ -264,6 +296,14 @@ int main(int argc, char** argv)
     Data data(model);
     model.gravity.linear(Eigen::Vector3d(0,0,-9.81));
 
+    // 获取末端 frame id
+    int link_tcp_id = model.getFrameId("link_tcp");
+    RCLCPP_INFO(node->get_logger(), "link_tcp_id=%d:", link_tcp_id);
+    if (link_tcp_id == -1) {
+        RCLCPP_ERROR(node->get_logger(), "TCP not found!");
+        return 1;
+    }
+
     // Print joints
     // std::cout << "Model has nq=" << model.nq << " nv=" << model.nv << " joints: \n";
     RCLCPP_INFO(node->get_logger(), "Model has nq=%d nv=%d joints:", model.nq, model.nv);
@@ -285,6 +325,7 @@ int main(int argc, char** argv)
     std::vector<double> delta_energy_history;
     std::vector<double> energy_T_history;
     std::vector<double> energy_U_history;
+    std::vector<Eigen::Vector3d> ee_history;
 
     q_history.push_back(q_prev);
 
@@ -307,6 +348,9 @@ int main(int argc, char** argv)
     energy_history.push_back(total_energy);
     delta_energy_history.push_back(energy_history.back() - energy_history.front());
 
+    auto [ee_pos0, ee_rot0] = compute_end_effector_pose(model, data, link_tcp_id, q_prev);
+    ee_history.push_back(ee_pos0);
+
     // initial VI step
     auto [q_curr, info_init] = solve_q_next(model_ad, data_ad, q_prev, q_prev + v_prev * timestep, tau_k, timestep);
     q_history.push_back(q_curr);
@@ -317,6 +361,10 @@ int main(int argc, char** argv)
     energy_U_history.push_back(U);
     energy_history.push_back(T+U);
     delta_energy_history.push_back(energy_history.back() - energy_history.front());
+
+    auto [ee_pos1, _ee_rot1] = compute_end_effector_pose(model, data, link_tcp_id, q_curr);
+    ee_history.push_back(ee_pos1);
+    RCLCPP_INFO(node->get_logger(), "ee = %.2f, %.2f, %.2f", ee_pos1[0], ee_pos1[1], ee_pos1[2]);
 
     std::vector<double> runtimes;
 
@@ -344,6 +392,9 @@ int main(int argc, char** argv)
         energy_U_history.push_back(U);
         energy_history.push_back(T+U);
         delta_energy_history.push_back(energy_history.back() - energy_history.front());
+
+        auto [ee_pos, ee_rot] = compute_end_effector_pose(model, data, link_tcp_id, q_next);
+        ee_history.push_back(ee_pos);
 
         auto t1 = high_resolution_clock::now();
         double elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
@@ -392,6 +443,7 @@ int main(int argc, char** argv)
     write_csv_scalar_series("src/vi/csv/ctsvi_ad/delta_energy_history.csv", delta_energy_history);
     write_csv_scalar_series("src/vi/csv/ctsvi_ad/energy_T_history.csv", energy_T_history);
     write_csv_scalar_series("src/vi/csv/ctsvi_ad/energy_U_history.csv", energy_U_history);
+    write_csv_3d("src/vi/csv/ctsvi_ad/ee_history.csv", ee_history);
 
     RCLCPP_INFO(node->get_logger(), "Saved CSVs.");
 
