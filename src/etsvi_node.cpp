@@ -461,7 +461,7 @@ int main(int argc, char** argv)
     std::cout.setf(std::ios::unitbuf);
     rclcpp::init(argc, argv);
     auto node = std::make_shared<rclcpp::Node>(
-        "my_vi_node",
+        "etsvi_node",
         rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)
     );
 
@@ -656,12 +656,12 @@ int main(int argc, char** argv)
     RCLCPP_INFO(node->get_logger(), "Simulation finished, wall time: %f s, Average step time: %f ms", total_elapsed, avg_time*1e3);
 
     // Save CSVs
-    write_csv("src/vi/csv/atsvi_ad/q_history.csv", q_history);
-    write_csv_scalar_series("src/vi/csv/atsvi_ad/time_history.csv", time_history);
-    write_csv_scalar_series("src/vi/csv/atsvi_ad/energy_history.csv", energy_history);
-    write_csv_scalar_series("src/vi/csv/atsvi_ad/h_history.csv", h_history);
-    write_csv_scalar_series("src/vi/csv/atsvi_ad/delta_energy_history.csv", delta_energy_history);
-    write_csv_3d("src/vi/csv/atsvi_ad/ee_history.csv", ee_history);
+    write_csv("src/vi/csv/etsvi/q_history.csv", q_history);
+    write_csv_scalar_series("src/vi/csv/etsvi/time_history.csv", time_history);
+    write_csv_scalar_series("src/vi/csv/etsvi/energy_history.csv", energy_history);
+    write_csv_scalar_series("src/vi/csv/etsvi/h_history.csv", h_history);
+    write_csv_scalar_series("src/vi/csv/etsvi/delta_energy_history.csv", delta_energy_history);
+    write_csv_3d("src/vi/csv/etsvi/ee_history.csv", ee_history);
 
     RCLCPP_INFO(node->get_logger(), "Saved CSVs.");
 
