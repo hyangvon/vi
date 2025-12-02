@@ -1,19 +1,5 @@
-// variational_integrator_adaptive.cpp
-// Full AD version of ATSVI (Adaptive-step variational integrator) using Pinocchio + CppAD + Eigen + rclcpp
-// Created by assistant (merged & fixed). Save as variational_integrator_adaptive.cpp
-
 #include <cppad/cppad.hpp>
 #include <cppad/example/cppad_eigen.hpp>
-
-// Fix Eigen <-> CppAD compatibility for isfinite()
-namespace Eigen {
-    namespace numext {
-        template<>
-        EIGEN_STRONG_INLINE bool isfinite(const CppAD::AD<double>&) {
-            return true;
-        }
-    }
-}
 
 #include <pinocchio/parsers/urdf.hpp>
 #include <pinocchio/algorithm/crba.hpp>
@@ -36,6 +22,16 @@ namespace Eigen {
 #include <string>
 #include <iomanip>
 
+// Fix Eigen <-> CppAD compatibility for isfinite()
+namespace Eigen {
+    namespace numext {
+        template<>
+        EIGEN_STRONG_INLINE bool isfinite(const CppAD::AD<double>&) {
+            return true;
+        }
+    }
+}
+
 using namespace pinocchio;
 using namespace std::chrono;
 
@@ -47,6 +43,33 @@ using Vec  = Eigen::VectorXd;
 using Mat  = Eigen::MatrixXd;
 using ModelAD = pinocchio::ModelTpl<ADScalar>;
 using DataAD  = pinocchio::DataTpl<ADScalar>;
+
+// ---------- Simple PID controller for step-size ----------
+// Controls h using energy error (E_next - E_prev). Output is additive delta_h.
+struct PIDController {
+    double Kp{0.0}, Ki{0.0}, Kd{0.0};
+    double integral{0.0};
+    double last_error{0.0};
+    double integral_min{-1e100}, integral_max{1e100}; // anti-windup clamps
+
+    PIDController() = default;
+    PIDController(double p, double i, double d, double i_min=-1e100, double i_max=1e100)
+      : Kp(p), Ki(i), Kd(d), integral_min(i_min), integral_max(i_max) {}
+
+    // dt: physical time corresponding to the step-size used for derivative/integral scaling.
+    double update(double error, double dt) {
+        // handle dt near zero
+        double deriv = (dt > 0.0) ? (error - last_error) / dt : 0.0;
+        integral += error * dt;
+        // clamp integral to prevent wind-up
+        if (integral > integral_max) integral = integral_max;
+        if (integral < integral_min) integral = integral_min;
+        last_error = error;
+        return Kp * error + Ki * integral + Kd * deriv;
+    }
+
+    void reset() { integral = 0.0; last_error = 0.0; }
+};
 
 // 计算末端位姿（位置 + 旋转矩阵）
 std::pair<Eigen::Vector3d, Eigen::Matrix3d>
@@ -123,7 +146,7 @@ ADScalar discreteLagrangian_ad(const ModelAD &model_ad, DataAD &data_ad,
 }
 
 // ---------- AD gradients D1, D2 (returns double vector evaluated at q) ----------
-Vec D_1_ad(const ModelAD &model_ad, DataAD &data_ad, const Vec &q0, const Vec &q1, double h)
+Vec D_1(const ModelAD &model_ad, DataAD &data_ad, const Vec &q0, const Vec &q1, double h)
 {
     const int n = q0.size();
     // independent variables: q0
@@ -151,7 +174,7 @@ Vec D_1_ad(const ModelAD &model_ad, DataAD &data_ad, const Vec &q0, const Vec &q
     return grad;
 }
 
-Vec D_2_ad(const ModelAD &model_ad, DataAD &data_ad, const Vec &q0, const Vec &q1, double h)
+Vec D_2(const ModelAD &model_ad, DataAD &data_ad, const Vec &q0, const Vec &q1, double h)
 {
     const int n = q1.size();
     // independent variables: q1
@@ -232,37 +255,42 @@ std::pair<Vec, SolverInfo> VI_init_ad(const Model &model, Data &data,
 }
 
 // ---------- Fixed-step DEL solver (Newton on q_next) ----------
-std::pair<Vec, SolverInfo> solve_q_next_fixed_ad(const ModelAD &model_ad, DataAD &data_ad,
-                                                 const Vec &q_prev, const Vec &q_curr,
-                                                 const Vec &tau_k, double h,
-                                                 double eps=1e-6, int max_iters=50, double tol=1e-8)
+std::pair<Vec, SolverInfo> solve_q_next(const ModelAD &model_ad,
+                                        DataAD &data_ad,
+                                        const Vec &q_prev,
+                                        const Vec &q_curr,
+                                        const Vec &tau_k,
+                                        double h,
+                                        int max_iters=50,
+                                        double tol=1e-8)
 {
     int n = q_curr.size();
     Vec q_next = q_curr;
     SolverInfo info{false, "", 0, 0.0};
 
-    for (int it=0; it<max_iters; ++it)
+    for (int it = 0; it < max_iters; ++it)
     {
-        Vec D2 = D_2_ad(model_ad, data_ad, q_prev, q_curr, h);
-        Vec D1 = D_1_ad(model_ad, data_ad, q_curr, q_next, h);
+        Vec D2 = D_2(model_ad, data_ad, q_prev, q_curr, h);
+        Vec D1 = D_1(model_ad, data_ad, q_curr, q_next, h);
         Vec R = D2 + D1 - h * tau_k;
         double normR = R.norm();
         info.iterations = it;
         info.residual_norm = normR;
         if (normR < tol) { info.converged = true; return {q_next, info}; }
 
+        // numeric Jacobian of D1 wrt q_next (could be replaced by AD Jacobian)
         Mat J = Mat::Zero(n, n);
-        double eps_j = eps;
-        for (int j=0;j<n;++j)
+        double eps = 1e-6;
+        for (int j = 0; j < n; ++j)
         {
             Vec dq = Vec::Zero(n);
-            dq(j) = eps_j;
-            Vec D1p = D_1_ad(model_ad, data_ad, q_curr, q_next + dq, h);
-            Vec D1m = D_1_ad(model_ad, data_ad, q_curr, q_next - dq, h);
-            J.col(j) = (D1p - D1m) / (2.0 * eps_j);
+            dq(j) = eps;
+            Vec D1p = D_1(model_ad, data_ad, q_curr, q_next + dq, h);
+            Vec D1m = D_1(model_ad, data_ad, q_curr, q_next - dq, h);
+            J.col(j) = (D1p - D1m) / (2.0 * eps);
         }
 
-        Mat A = J + 1e-9 * Mat::Identity(n,n);
+        Mat A = J + 1e-9 * Mat::Identity(n, n);
         Eigen::ColPivHouseholderQR<Mat> solver(A);
         if (solver.rank() < n)
         {
@@ -273,152 +301,42 @@ std::pair<Vec, SolverInfo> solve_q_next_fixed_ad(const ModelAD &model_ad, DataAD
         Vec delta = solver.solve(-R);
         q_next += delta;
     }
+
     info.converged = false;
     info.reason = "max_iters";
     return {q_next, info};
 }
 
-// ---------- SEM adaptive-step solver (Newton on [q_next, h_next]) ----------
-std::tuple<Vec, double, SolverInfo> solve_q_next_sem_ad(
-    const Model &model, Data &data,
-    const ModelAD &model_ad, DataAD &data_ad,
-    const Vec &q_prev, const Vec &q_curr,
-    double h_prev,
-    const Vec &qdot_guess,
-    const Vec &tau_k,
-    double eps_q = 1e-6,
-    double eps_h = 1e-6,
-    int max_iters = 80,
-    double tol = 1e-8,
-    double h_min = 1e-6,
-    double h_max = 0.1)
+// ---------- Energy-tracking time steps solver ----------
+std::tuple<Vec, double, SolverInfo> solve_q_next_et(const Model &model, Data &data,
+                                                    const ModelAD &model_ad, DataAD &data_ad,
+                                                    const Vec &q_prev, const Vec &q_curr,
+                                                    double h_prev,
+                                                    const Vec &tau_k,
+                                                    PIDController pid,
+                                                    double eps_q = 1e-6,
+                                                    double eps_h = 1e-6,
+                                                    int max_iters = 80,
+                                                    double tol = 1e-8,
+                                                    double h_min = 1e-6,
+                                                    double h_max = 0.1)
 {
-    int n = q_curr.size();
-    Vec q_next = q_curr + h_prev * qdot_guess;
-    double h_next = h_prev;
+    double E_d = discrete_energy_numeric(model, data, q_prev, q_curr, h_prev);
 
-    // E_prev computed via double model (numeric)
-    double E_prev = discrete_energy_numeric(model, data, q_prev, q_curr, h_prev, eps_h);
+    auto [q_next, info] = solve_q_next(model_ad, data_ad, q_prev,
+                                           q_curr, tau_k, h_prev);
 
-    SolverInfo info{false, "", 0, 0.0};
-    Vec Rvec = Vec::Zero(n+1);
+    double E_r = discrete_energy_numeric(model, data, q_curr, q_next, h_prev);
 
-    for (int it=0; it<max_iters; ++it)
-    {
-        // D2 depends on q_prev, q_curr, h_prev
-        Vec D2 = D_2_ad(model_ad, data_ad, q_prev, q_curr, h_prev);
-        // D1 depends on q_curr, q_next, h_next
-        Vec D1 = D_1_ad(model_ad, data_ad, q_curr, q_next, h_next);
+    // define normalized error (scale invariant)
+    double scale = std::max(std::abs(E_r), std::abs(E_d));
+    double norm = (scale < 1e-12) ? 1.0 : scale;
+    double E_err = (E_r - E_d) / norm; // want ~0
 
-        Vec gvec = h_prev * D2 + h_next * D1; // size n
-        double E_next = discrete_energy_numeric(model, data, q_curr, q_next, h_next, eps_h);
-        double fval = E_prev - E_next;
+    double delta_h = pid.update(E_err, h_prev);
+    double h_next = h_prev + delta_h;
 
-        for (int i=0;i<n;++i) Rvec(i) = gvec(i);
-        Rvec(n) = fval;
-
-        double normR = Rvec.norm();
-        info.iterations = it;
-        info.residual_norm = normR;
-        if (normR < tol) { info.converged = true; return {q_next, h_next, info}; }
-
-        // Build Jacobian J (n+1 x n+1)
-        Mat J = Mat::Zero(n+1, n+1);
-
-        // columns 0..n-1: derivatives wrt q_next_j (numeric diffs of D1 and Ed)
-        for (int j=0;j<n;++j)
-        {
-            Vec dq = Vec::Zero(n);
-            dq(j) = eps_q;
-            Vec D1p = D_1_ad(model_ad, data_ad, q_curr, q_next + dq, h_next);
-            Vec D1m = D_1_ad(model_ad, data_ad, q_curr, q_next - dq, h_next);
-            Vec col = h_next * (D1p - D1m) / (2.0 * eps_q);
-            for (int i=0;i<n;++i) J(i, j) = col(i);
-
-            double Ep = discrete_energy_numeric(model, data, q_curr, q_next + dq, h_next, eps_h);
-            double Em = discrete_energy_numeric(model, data, q_curr, q_next - dq, h_next, eps_h);
-            double df_dqj = - (Ep - Em) / (2.0 * eps_q);
-            J(n, j) = df_dqj;
-        }
-
-        // column n: derivative wrt h_next (numeric)
-        double dh = eps_h;
-        Vec D1p_h = D_1_ad(model_ad, data_ad, q_curr, q_next, h_next + dh);
-        Vec D1m_h = D_1_ad(model_ad, data_ad, q_curr, q_next, h_next - dh);
-        Vec dD1_dh = (D1p_h - D1m_h) / (2.0 * dh);
-        Vec col_h = D1 + h_next * dD1_dh; // ∂g/∂h_next
-        for (int i=0;i<n;++i) J(i, n) = col_h(i);
-
-        double Ep_h = discrete_energy_numeric(model, data, q_curr, q_next, h_next + dh, eps_h);
-        double Em_h = discrete_energy_numeric(model, data, q_curr, q_next, h_next - dh, eps_h);
-        double dEd_dh = (Ep_h - Em_h) / (2.0 * dh);
-        J(n, n) = - dEd_dh;
-
-        // Solve linear system
-        Mat Jreg = J + 1e-9 * Mat::Identity(n+1, n+1);
-        Eigen::ColPivHouseholderQR<Mat> solver(Jreg);
-        if (solver.rank() < n+1)
-        {
-            info.converged = false;
-            info.reason = "singular_jacobian";
-            return {q_next, h_next, info};
-        }
-
-        Vec delta = solver.solve(-Rvec);
-        Vec dq = delta.head(n);
-        double dh_scalar = delta(n);
-
-        // Backtracking line search
-        double alpha = 1.0;
-        bool accept = false;
-        for (int ls=0; ls<10; ++ls)
-        {
-            Vec q_trial = q_next + alpha * dq;
-            double h_trial = h_next + alpha * dh_scalar;
-            if (h_trial <= h_min || h_trial >= h_max) { alpha *= 0.5; continue; }
-
-            Vec D1_trial = D_1_ad(model_ad, data_ad, q_curr, q_trial, h_trial);
-            Vec g_trial = h_prev * D2 + h_trial * D1_trial;
-            double E_trial = discrete_energy_numeric(model, data, q_curr, q_trial, h_trial, eps_h);
-            double f_trial = E_prev - E_trial;
-
-            Vec Rtrial(n+1);
-            for (int i=0;i<n;++i) Rtrial(i) = g_trial(i);
-            Rtrial(n) = f_trial;
-
-            if (Rtrial.norm() < (1.0 - 1e-4 * alpha) * normR || alpha < 1e-3)
-            {
-                q_next = q_trial;
-                h_next = h_trial;
-                accept = true;
-                break;
-            }
-            alpha *= 0.5;
-        }
-
-        if (!accept)
-        {
-            info.converged = false;
-            info.reason = "line_search_failed";
-            info.iterations = it;
-            info.residual_norm = normR;
-            return {q_next, h_next, info};
-        }
-    }
-
-    info.converged = false;
-    info.reason = "max_iters";
     return {q_next, h_next, info};
-}
-
-// Optional: ABA dynamics step helper
-std::pair<Vec, Vec> pinocchio_dynamics_step(const Model &model, Data &data, const Vec &q, const Vec &v, const Vec &tau, double h)
-{
-    pinocchio::aba(model, data, q, v, tau);
-    Vec qdd = data.ddq;
-    Vec v_next = v + h * qdd;
-    Vec q_next = q + h * v_next;
-    return {q_next, v_next};
 }
 
 // CSV writers
@@ -453,6 +371,23 @@ void write_csv_3d(const std::string &filename,
         ofs << std::setprecision(15)
             << v(0) << "," << v(1) << "," << v(2) << "\n";
     }
+}
+
+void print_progress(double t_cur, double duration, std::vector<double> runtimes, double h_next) {
+    int bar_width = 50;
+    double progress = t_cur / duration;
+    if (progress > 1.0) progress = 1.0;
+    int pos = int(bar_width * progress);
+    double avg_time = !runtimes.empty() ? std::accumulate(runtimes.begin(), runtimes.end(), 0.0) / runtimes.size() : 0.0;
+    double time_left = avg_time * (duration - t_cur) / h_next;
+    std::cout << "\r[";
+    for (int i = 0; i < bar_width; ++i) {
+        if (i < pos) std::cout << "=";
+        else if (i == pos) std::cout << ">";
+        else std::cout << " ";
+    }
+    std::cout << "] " << int(progress * 100.0) << "%, approx " << int(time_left/60) << "mins " << int(time_left) % 60 << "s left... ";
+    std::cout.flush();
 }
 
 // ---------- Main ----------
@@ -537,34 +472,8 @@ int main(int argc, char** argv)
     auto [ee_pos0, ee_rot0] = compute_end_effector_pose(model, data, link_tcp_id, q_prev);
     ee_history.push_back(ee_pos0);
 
-    // initial implicit VI step (use VI_init_ad)
-    // auto [q_curr, info_init] = VI_init_ad(model, data, model_ad, data_ad, q_prev, v_prev, tau_k, timestep, eps_diff);
-    // if (!info_init.converged) {
-    //     RCLCPP_WARN(node->get_logger(), "VI_init did not converge (reason=%s). Proceeding with initial guess.", info_init.reason.c_str());
-    // }
-    // q_history.push_back(q_curr);
-    //
-    // double T = kinetic_energy(model, data, (q_curr + q_prev) / 2.0, (q_curr - q_prev)/timestep);
-    // double U = potential_energy(model, data, (q_curr + q_prev) / 2.0);
-    // total_energy = T + U;
-    // energy_history.push_back(total_energy);
-    // delta_energy_history.push_back(energy_history.back() - energy_history.front());
-    
-    auto [q_curr, h_next, info_adapt] = solve_q_next_sem_ad(
-            model, data, model_ad, data_ad,
-            q_prev,
-            q_prev + v_prev * timestep,
-            timestep,
-            v_prev,
-            tau_k,
-            /*eps_q=*/eps_diff,
-            /*eps_h=*/eps_diff,
-            /*max_iters=*/max_adapt_iters,
-            /*tol=*/1e-8,
-            h_min,
-            h_max
-        );
-        
+    // initial VI step
+    auto [q_curr, info_init] = solve_q_next(model_ad, data_ad, q_prev, q_prev + v_prev * timestep, tau_k, timestep);
     q_history.push_back(q_curr);
     
     double T = kinetic_energy(model, data, (q_curr + q_prev) / 2.0, (q_curr - q_prev)/timestep);
@@ -581,6 +490,8 @@ int main(int argc, char** argv)
     time_history.push_back(timestep);
     h_history.push_back(timestep);
 
+    PIDController pid(pid_Kp, pid_Ki, pid_Kd, -1e6, 1e6);
+
     // int max_steps = std::max((int)(duration / h_min) + 10, 1000);
     for (int step=0; step < n_steps -1  && t_cur < duration - 1e-12; ++step)
     {
@@ -588,13 +499,13 @@ int main(int argc, char** argv)
 
         Vec qdot_guess = (q_history.back() - q_history[q_history.size()-2]) / h_history.back();
 
-        auto [q_next, h_next, info_adapt] = solve_q_next_sem_ad(
+        auto [q_next, h_next, info_adapt] = solve_q_next_et(
             model, data, model_ad, data_ad,
             q_history[q_history.size()-2],
             q_history[q_history.size()-1],
             h_history.back(),
-            qdot_guess,
             tau_k,
+            pid,
             /*eps_q=*/eps_diff,
             /*eps_h=*/eps_diff,
             /*max_iters=*/max_adapt_iters,
@@ -606,7 +517,7 @@ int main(int argc, char** argv)
         if (!info_adapt.converged)
         {
             RCLCPP_WARN(node->get_logger(), "Step %d: SEM solver failed (%s). Falling back to fixed-step DEL.", step, info_adapt.reason.c_str());
-            auto [q_fix, info_fix] = solve_q_next_fixed_ad(model_ad, data_ad, q_history[q_history.size()-2], q_history[q_history.size()-1], tau_k, h_history.back(), eps_diff);
+            auto [q_fix, info_fix] = solve_q_next(model_ad, data_ad, q_history[q_history.size()-2], q_history[q_history.size()-1], tau_k, h_history.back(), eps_diff);
             q_next = q_fix;
             h_next = h_history.back();
             RCLCPP_INFO(node->get_logger(), "Fixed-step info: converged=%d it=%d res=%f reason=%s", info_fix.converged, info_fix.iterations, info_fix.residual_norm, info_fix.reason.c_str());
@@ -630,26 +541,10 @@ int main(int argc, char** argv)
         double elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
         runtimes.push_back(elapsed);
 
-        double progress = t_cur / duration;
-        if (progress > 1.0) progress = 1.0;
-        int bar_width = 50;
-        int pos = int(bar_width * progress);
-        double avg_time = !runtimes.empty() ? std::accumulate(runtimes.begin(), runtimes.end(), 0.0) / runtimes.size() : 0.0;
-        double time_left = avg_time * (duration - t_cur) / std::max(h_min, h_next);
-        std::cout << "\r[";
-        for (int i = 0; i < bar_width; ++i) {
-            if (i < pos) std::cout << "=";
-            else if (i == pos) std::cout << ">";
-            else std::cout << " ";
-        }
-        std::cout << "] " << int(progress * 100.0) << "%, approx " << int(time_left/60) << "mins " << int(time_left) % 60 << "s left... ";
-        std::cout.flush();
+        print_progress(t_cur, duration, runtimes, h_next);
     }
     std::cout << "\n";
 
-    // if (!time_history.empty()) {
-    //     time_history.pop_back();
-    // }
     auto t_end = high_resolution_clock::now();
     double total_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t_end - t_start).count();
     double avg_time = !runtimes.empty() ? std::accumulate(runtimes.begin(), runtimes.end(), 0.0) / runtimes.size() : 0.0;
