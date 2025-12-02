@@ -35,6 +35,7 @@ install(PROGRAMS
         scripts/ctsvi_ad_sim.py
         scripts/atsvi_sim.py
         scripts/atsvi_ad_sim.py
+        scripts/vi_compare_sim.py
         DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 def run_simulation():
     """运行 C++ 仿真节点"""
-    config_file = '/home/space/ros2_ws/dynamic_ws/src/vi/config/ctsvi_ad_params.yaml'
+    config_file = '/home/space/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml'
 
     print("Starting Variational Integrator simulation...")
     try:
@@ -86,7 +86,7 @@ def plot_results(tag, dpi_set):
     # plt.show()
 
     # ---------- 3. 绘制能量曲线 ----------
-    plt.figure(figsize=(10, 4))
+    plt.figure(figsize=(10, 5))
     # plt.plot(time, energy, label='Total Energy')
     plt.plot(time, delta_energy, label='ΔEnergy (relative to initial)')
     # plt.plot(time, energy_T, label='Energy T')
@@ -96,7 +96,7 @@ def plot_results(tag, dpi_set):
     plt.title('Energy evolution')
     plt.legend()
     plt.grid(True)
-    plt.ylim(-0.001, 0.001)
+    plt.ylim(-0.05, 0.05)
     plt.tight_layout()
     filename = f"energy_{tag}.png"
     save_path = os.path.join(save_dir, filename)
@@ -151,8 +151,8 @@ def plot_results(tag, dpi_set):
 def main():
     """主函数"""
     # 运行仿真
-    if not run_simulation():
-        return 1
+    # if not run_simulation():
+    #     return 1
 
     # 绘制结果
     if not plot_results("ctsvi_ad", 1000):
