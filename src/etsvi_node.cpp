@@ -461,7 +461,7 @@ int main(int argc, char** argv)
     std::cout.setf(std::ios::unitbuf);
     rclcpp::init(argc, argv);
     auto node = std::make_shared<rclcpp::Node>(
-        "atsvi_ad_node",
+        "my_vi_node",
         rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)
     );
 

@@ -13,15 +13,9 @@ def run_simulation():
     print("Starting Variational Integrator simulation...")
     try:
         result = subprocess.run([
-            'ros2', 'run', 'vi', 'atsvi_ad_node',
+            'ros2', 'run', 'vi', 'my_vi_node',
             '--ros-args', '--params-file', config_file
         ], check=True)
-
-        # ad
-        # result = subprocess.run([
-        #     'ros2', 'run', 'ctsvi', 'ctsvi_ad_node',
-        #     '--ros-args', '--params-file', config_file
-        # ], check=True)
 
         print("Simulation completed successfully")
         return True
@@ -36,7 +30,7 @@ def plot_results(tag, dpi_set):
     print("Generating plots...")
 
     # ---------- 1. 读取数据 ----------
-    csv_dir = '/home/space/ros2_ws/dynamic_ws/src/vi/csv/atsvi_ad/'
+    csv_dir = '/home/space/ros2_ws/dynamic_ws/src/vi/csv/my_vi/'
 
     if not os.path.exists(os.path.join(csv_dir, 'q_history.csv')):
         print("CSV files not found. Simulation may have failed.")
@@ -141,11 +135,11 @@ def plot_results(tag, dpi_set):
 def main():
     """主函数"""
     # 运行仿真
-    # if not run_simulation():
-    #     return 1
+    if not run_simulation():
+        return 1
 
     # 绘制结果
-    if not plot_results("atsvi_ad", 1000):
+    if not plot_results("my_vi", 1000):
         return 1
 
     print("All tasks completed successfully!")

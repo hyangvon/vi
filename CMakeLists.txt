@@ -14,21 +14,11 @@ ament_auto_find_build_dependencies()
 find_package(Eigen3 REQUIRED NO_MODULE)
 include_directories(${EIGEN3_INCLUDE_DIRS})
 
-ament_auto_add_executable(
-        ctsvi_node src/ctsvi_node.cpp
-)
-
-ament_auto_add_executable(
-        ctsvi_ad_node src/ctsvi_ad_node.cpp
-)
-
-ament_auto_add_executable(
-        atsvi_node src/atsvi_node.cpp
-)
-
-ament_auto_add_executable(
-        atsvi_ad_node src/atsvi_ad_node.cpp
-)
+ament_auto_add_executable(ctsvi_node src/ctsvi_node.cpp)
+ament_auto_add_executable(ctsvi_ad_node src/ctsvi_ad_node.cpp)
+ament_auto_add_executable(atsvi_node src/atsvi_node.cpp)
+ament_auto_add_executable(atsvi_ad_node src/atsvi_ad_node.cpp)
+ament_auto_add_executable(etsvi_node src/etsvi_node.cpp)
 
 install(PROGRAMS
         scripts/ctsvi_sim.py
@@ -36,6 +26,7 @@ install(PROGRAMS
         scripts/atsvi_sim.py
         scripts/atsvi_ad_sim.py
         scripts/vi_compare_sim.py
+        scripts/etsvi_sim.py
         DESTINATION lib/${PROJECT_NAME}
 )
 
