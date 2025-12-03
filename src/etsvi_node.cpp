@@ -205,55 +205,6 @@ Vec D_2(const ModelAD &model_ad, DataAD &data_ad, const Vec &q0, const Vec &q1, 
 // ---------- Solver info ----------
 struct SolverInfo { bool converged; std::string reason; int iterations; double residual_norm; };
 
-// ---------- VI_init (initial implicit step) ----------
-std::pair<Vec, SolverInfo> VI_init_ad(const Model &model, Data &data,
-                                      const ModelAD &model_ad, DataAD &data_ad,
-                                      const Vec &q0, const Vec &v0, const Vec &tau_k, double h,
-                                      double eps=1e-6, int max_iters=50, double tol=1e-8)
-{
-    int n = q0.size();
-    Vec q1 = q0 + h * v0; // initial guess
-    SolverInfo info{false, "", 0, 0.0};
-
-    for (int it=0; it<max_iters; ++it)
-    {
-        // Residual R = M(q0) * v0 + D1(q0,q1) - h * tau_k
-        Mat M = inertia_matrix(model, data, q0);
-        Vec D1 = D_1_ad(model_ad, data_ad, q0, q1, h);
-        Vec R = M * v0 + D1 - h * tau_k;
-        double normR = R.norm();
-        info.iterations = it;
-        info.residual_norm = normR;
-        if (normR < tol) { info.converged = true; return {q1, info}; }
-
-        // numeric Jacobian of D1 wrt q1 (columns)
-        Mat J = Mat::Zero(n, n);
-        double eps_j = eps;
-        for (int j=0;j<n;++j)
-        {
-            Vec dq = Vec::Zero(n);
-            dq(j) = eps_j;
-            Vec D1p = D_1_ad(model_ad, data_ad, q0, q1 + dq, h);
-            Vec D1m = D_1_ad(model_ad, data_ad, q0, q1 - dq, h);
-            J.col(j) = (D1p - D1m) / (2.0 * eps_j);
-        }
-
-        Mat A = J + 1e-9 * Mat::Identity(n,n);
-        Eigen::ColPivHouseholderQR<Mat> solver(A);
-        if (solver.rank() < n)
-        {
-            info.converged = false;
-            info.reason = "singular_jacobian";
-            return {q1, info};
-        }
-        Vec delta = solver.solve(-R);
-        q1 += delta;
-    }
-    info.converged = false;
-    info.reason = "max_iters";
-    return {q1, info};
-}
-
 // ---------- Fixed-step DEL solver (Newton on q_next) ----------
 std::pair<Vec, SolverInfo> solve_q_next(const ModelAD &model_ad,
                                         DataAD &data_ad,
@@ -313,13 +264,7 @@ std::tuple<Vec, double, SolverInfo> solve_q_next_et(const Model &model, Data &da
                                                     const Vec &q_prev, const Vec &q_curr,
                                                     double h_prev,
                                                     const Vec &tau_k,
-                                                    PIDController pid,
-                                                    double eps_q = 1e-6,
-                                                    double eps_h = 1e-6,
-                                                    int max_iters = 80,
-                                                    double tol = 1e-8,
-                                                    double h_min = 1e-6,
-                                                    double h_max = 0.1)
+                                                    PIDController pid)
 {
     double E_d = discrete_energy_numeric(model, data, q_prev, q_curr, h_prev);
 
@@ -406,13 +351,18 @@ int main(int argc, char** argv)
     double duration = node->get_parameter("duration").as_double();
     double eps_diff = node->get_parameter("eps_diff").as_double();
     std::string urdf_path = node->get_parameter("urdf_path").as_string();
-    double h_min = node->get_parameter("h_min").as_double();
-    double h_max = node->get_parameter("h_max").as_double();
-    int max_adapt_iters = node->get_parameter("max_adapt_iters").as_int();
+    // double h_min = node->get_parameter("h_min").as_double();
+    // double h_max = node->get_parameter("h_max").as_double();
+    // int max_adapt_iters = node->get_parameter("max_adapt_iters").as_int();
+
+    // PID params for energy control
+    double pid_Kp = node->get_parameter("pid_Kp").as_double();
+    double pid_Ki = node->get_parameter("pid_Ki").as_double();
+    double pid_Kd = node->get_parameter("pid_Kd").as_double();
 
     RCLCPP_INFO(node->get_logger(), "Using URDF: %s", urdf_path.c_str());
     RCLCPP_INFO(node->get_logger(), "Duration = %.3f, Timestep(init) = %.6f, eps_diff = %.1e", duration, timestep, eps_diff);
-    RCLCPP_INFO(node->get_logger(), "h_min=%.1e h_max=%.6f max_adapt_iters=%d", h_min, h_max, max_adapt_iters);
+    // RCLCPP_INFO(node->get_logger(), "h_min=%.1e h_max=%.6f max_adapt_iters=%d", h_min, h_max, max_adapt_iters);
 
     // load model (double) and data
     Model model;
@@ -427,13 +377,13 @@ int main(int argc, char** argv)
 
     // 获取末端 frame id
     int link_tcp_id = model.getFrameId("link_tcp");
-    RCLCPP_INFO(node->get_logger(), "link_tcp_id=%d:", link_tcp_id);
+    // RCLCPP_INFO(node->get_logger(), "link_tcp_id=%d:", link_tcp_id);
     if (link_tcp_id == -1) {
         RCLCPP_ERROR(node->get_logger(), "TCP not found!");
         return 1;
     }
 
-    RCLCPP_INFO(node->get_logger(), "Model has nq=%d nv=%d", model.nq, model.nv);
+    // RCLCPP_INFO(node->get_logger(), "Model has nq=%d nv=%d", model.nq, model.nv);
 
     // build AD model/data
     ModelAD model_ad = model.cast<ADScalar>();
@@ -505,13 +455,7 @@ int main(int argc, char** argv)
             q_history[q_history.size()-1],
             h_history.back(),
             tau_k,
-            pid,
-            /*eps_q=*/eps_diff,
-            /*eps_h=*/eps_diff,
-            /*max_iters=*/max_adapt_iters,
-            /*tol=*/1e-8,
-            h_min,
-            h_max
+            pid
         );
 
         if (!info_adapt.converged)

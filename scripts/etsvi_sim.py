@@ -86,7 +86,7 @@ def plot_results(tag, dpi_set):
     plt.title('Energy evolution')
     plt.legend()
     plt.grid(True)
-    plt.ylim(-0.05, 0.05)
+    # plt.ylim(-0.05, 0.05)
     plt.tight_layout()
     filename = f"energy_{tag}.png"
     save_path = os.path.join(save_dir, filename)
@@ -122,7 +122,11 @@ def plot_results(tag, dpi_set):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    filename = f"step_{tag}.png"
+    save_path = os.path.join(save_dir, filename)
+    plt.savefig(save_path, dpi = dpi_set)
+    print("Saved:", save_path)
+    # plt.show()
 
     print("Plotting completed. Close all plot windows to exit.")
 
