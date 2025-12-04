@@ -1,13 +1,13 @@
 ctsvi_ad_node:
   ros__parameters:
-    q_init: 0.1
+    q_init: 0.3
     timestep: 0.01
     duration: 25.0
     urdf_path: /home/space/ros2_ws/dynamic_ws/src/vi/urdf/7_pendulum.urdf
 
 atsvi_ad_node:
   ros__parameters:
-    q_init: 0.1
+    q_init: 0.3
     timestep: 0.01
     duration: 25.0
     eps_diff: 1e-6
@@ -18,7 +18,7 @@ atsvi_ad_node:
 
 etsvi_node:
   ros__parameters:
-    q_init: 0.1
+    q_init: 0.3
     timestep: 0.01
     duration: 25.0
     eps_diff: 1e-6
@@ -26,6 +26,6 @@ etsvi_node:
 #    h_min: 1e-6
 #    h_max: 0.1
 #    max_adapt_iters: 100
-    pid_Kp: 0.
-    pid_Ki: 0.0
-    pid_Kd: 0.0
+    pid_Kp: 0.01
+    pid_Ki: 0.001
+    pid_Kd: 0.001

@@ -264,7 +264,7 @@ std::tuple<Vec, double, SolverInfo> solve_q_next_et(const Model &model, Data &da
                                                     const Vec &q_prev, const Vec &q_curr,
                                                     double h_prev,
                                                     const Vec &tau_k,
-                                                    PIDController pid)
+                                                    PIDController &pid)
 {
     double E_d = discrete_energy_numeric(model, data, q_prev, q_curr, h_prev);
 
@@ -276,7 +276,7 @@ std::tuple<Vec, double, SolverInfo> solve_q_next_et(const Model &model, Data &da
     // define normalized error (scale invariant)
     double scale = std::max(std::abs(E_r), std::abs(E_d));
     double norm = (scale < 1e-12) ? 1.0 : scale;
-    double E_err = (E_r - E_d) / norm; // want ~0
+    double E_err = (E_d - E_r) / norm; // want ~0
 
     double delta_h = pid.update(E_err, h_prev);
     double h_next = h_prev + delta_h;
