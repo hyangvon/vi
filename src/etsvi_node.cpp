@@ -264,10 +264,10 @@ std::tuple<Vec, double, SolverInfo> solve_q_next_et(const Model &model, Data &da
                                                     const Vec &q_prev, const Vec &q_curr,
                                                     double h_prev,
                                                     const Vec &tau_k,
-                                                    PIDController &pid)
+                                                    PIDController &pid,
+                                                    double E_d)
 {
-    double E_d = discrete_energy_numeric(model, data, q_prev, q_curr, h_prev);
-
+    double h_kd = 0.01;
     auto [q_next, info] = solve_q_next(model_ad, data_ad, q_prev,
                                            q_curr, tau_k, h_prev);
 
@@ -276,9 +276,9 @@ std::tuple<Vec, double, SolverInfo> solve_q_next_et(const Model &model, Data &da
     // define normalized error (scale invariant)
     double scale = std::max(std::abs(E_r), std::abs(E_d));
     double norm = (scale < 1e-12) ? 1.0 : scale;
-    double E_err = (E_d - E_r) / norm; // want ~0
+    double E_err = (E_r - E_d) / norm; // want ~0
 
-    double delta_h = pid.update(E_err, h_prev);
+    double delta_h = pid.update(E_err, h_kd);
     double h_next = h_prev + delta_h;
 
     return {q_next, h_next, info};
@@ -435,6 +435,8 @@ int main(int argc, char** argv)
     auto [ee_pos1, _ee_rot1] = compute_end_effector_pose(model, data, link_tcp_id, q_curr);
     ee_history.push_back(ee_pos1);
 
+    double E_d = discrete_energy_numeric(model, data, q_prev, q_curr, timestep);
+
     double t_cur = 0.0;
     t_cur += timestep; // we have advanced to q_curr at t = timestep
     time_history.push_back(timestep);
@@ -455,7 +457,8 @@ int main(int argc, char** argv)
             q_history[q_history.size()-1],
             h_history.back(),
             tau_k,
-            pid
+            pid,
+            E_d
         );
 
         if (!info_adapt.converged)

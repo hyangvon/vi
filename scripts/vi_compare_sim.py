@@ -57,6 +57,32 @@ def run_atsvi():
             print(f"Error output: {e.stderr}")
         return False
 
+def run_etsvi():
+    """运行 C++ 仿真节点"""
+    config_file = '/home/space/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml'
+
+    print("Starting etsvi simulation...")
+
+    try:
+        result = subprocess.run([
+            'ros2', 'run', 'vi', 'etsvi_node',
+            '--ros-args', '--params-file', config_file
+        ], check=True)
+
+        # ad
+        # result = subprocess.run([
+        #     'ros2', 'run', 'ctsvi', 'ctsvi_ad_node',
+        #     '--ros-args', '--params-file', config_file
+        # ], check=True)
+
+        print("Simulation completed successfully")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Simulation failed: {e}")
+        if e.stderr:
+            print(f"Error output: {e.stderr}")
+        return False
+
 def plot_results(tag, dpi_set):
     """绘制仿真结果"""
     print("Generating plots...")
@@ -64,6 +90,7 @@ def plot_results(tag, dpi_set):
     # ---------- 1. 读取数据 ----------
     csv_dir_ctsvi_ad = '/home/space/ros2_ws/dynamic_ws/src/vi/csv/ctsvi_ad/'
     csv_dir_atsvi_ad = '/home/space/ros2_ws/dynamic_ws/src/vi/csv/atsvi_ad/'
+    csv_dir_etsvi = '/home/space/ros2_ws/dynamic_ws/src/vi/csv/etsvi/'
 
     if not os.path.exists(os.path.join(csv_dir_atsvi_ad, 'q_history.csv')):
         print("CSV files not found. Simulation may have failed.")
@@ -75,13 +102,17 @@ def plot_results(tag, dpi_set):
         #     q_history = q_history.reshape(-1, 1)
         tcp_ctsvi = np.loadtxt(os.path.join(csv_dir_ctsvi_ad, 'ee_history.csv'), delimiter=',')
         tcp_atsvi = np.loadtxt(os.path.join(csv_dir_atsvi_ad, 'ee_history.csv'), delimiter=',')
+        tcp_etsvi = np.loadtxt(os.path.join(csv_dir_etsvi, 'ee_history.csv'), delimiter=',')
         # energy = np.loadtxt(os.path.join(csv_dir, 'energy_history.csv'), delimiter=',')
         delta_energy_ctsvi = np.loadtxt(os.path.join(csv_dir_ctsvi_ad, 'delta_energy_history.csv'), delimiter=',')
         delta_energy_atsvi = np.loadtxt(os.path.join(csv_dir_atsvi_ad, 'delta_energy_history.csv'), delimiter=',')
+        delta_energy_etsvi = np.loadtxt(os.path.join(csv_dir_etsvi, 'delta_energy_history.csv'), delimiter=',')
         time_ctsvi = np.loadtxt(os.path.join(csv_dir_ctsvi_ad, 'time_history.csv'), delimiter=',')
         time_atsvi = np.loadtxt(os.path.join(csv_dir_atsvi_ad, 'time_history.csv'), delimiter=',')
+        time_etsvi = np.loadtxt(os.path.join(csv_dir_etsvi, 'time_history.csv'), delimiter=',')
         # momentum = np.loadtxt(os.path.join(csv_dir, 'momentum_history.csv'), delimiter=',')
-        step = np.loadtxt(os.path.join(csv_dir_atsvi_ad, 'h_history.csv'), delimiter=',')
+        step_atsvi = np.loadtxt(os.path.join(csv_dir_atsvi_ad, 'h_history.csv'), delimiter=',')
+        step_etsvi = np.loadtxt(os.path.join(csv_dir_etsvi, 'h_history.csv'), delimiter=',')
     except Exception as e:
         print(f"Error reading CSV files: {e}")
         return False
@@ -124,6 +155,9 @@ def plot_results(tag, dpi_set):
     # ATSVI
     plt.plot(time_atsvi, delta_energy_atsvi, label='ΔEnergy_atsvi', linestyle='-.', linewidth=2)
 
+    # ETSVI
+    plt.plot(time_etsvi, delta_energy_etsvi, label='ΔEnergy_etsvi', linestyle='--', linewidth=2)
+
     plt.xlabel('Time [s]')
     plt.ylabel('Energy [J]')
     plt.title('Energy evolution')
@@ -157,7 +191,8 @@ def plot_results(tag, dpi_set):
 
     # ---------- 5. 绘制timestep ----------
     plt.figure(figsize=(10, 5))
-    plt.plot(time_atsvi[1:], step, label='Time Step of atsvi')
+    plt.plot(time_atsvi[1:], step_atsvi, label='Time Step of atsvi', linestyle='-.', linewidth=2)
+    plt.plot(time_atsvi[1:], step_etsvi, label='Time Step of etsvi', linestyle='--', linewidth=2)
     # plt.plot(time, delta_energy, label='ΔEnergy (relative to initial)')
     plt.xlabel('Time [s]')
     plt.ylabel('Step')
@@ -181,6 +216,10 @@ def plot_results(tag, dpi_set):
     # ATSVI
     plt.plot(time_atsvi, tcp_atsvi[:, 0], label='px_atsvi', linestyle='-.', linewidth=2)
     plt.plot(time_atsvi, tcp_atsvi[:, 2], label='pz_atsvi', linestyle='-.', linewidth=2)
+
+    # ETSVI
+    plt.plot(time_etsvi, tcp_etsvi[:, 0], label='px_etsvi', linestyle='--', linewidth=2)
+    plt.plot(time_etsvi, tcp_etsvi[:, 2], label='pz_etsvi', linestyle='--', linewidth=2)
 
     plt.xlabel('Time [s]')
     plt.ylabel('Position [m]')
@@ -206,11 +245,14 @@ def plot_results(tag, dpi_set):
 def main():
     """主函数"""
     # 运行仿真
-    # if not run_ctsvi():
-    #     return 1
-    #
-    # if not run_atsvi():
-    #     return 1
+    if not run_ctsvi():
+        return 1
+
+    if not run_atsvi():
+        return 1
+
+    if not run_etsvi():
+        return 1
 
     # 绘制结果
     if not plot_results("compare", 1000):
