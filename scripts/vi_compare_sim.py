@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 
 def run_ctsvi():
     """运行 C++ 仿真节点"""
-    config_file = '/home/space/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml'
+    # config_file = '/home/space/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml'
+    config_file = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml')
 
     print("Starting ctsvi simulation...")
 
@@ -33,7 +34,8 @@ def run_ctsvi():
 
 def run_atsvi():
     """运行 C++ 仿真节点"""
-    config_file = '/home/space/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml'
+    # config_file = '/home/space/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml'
+    config_file = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml')
 
     print("Starting atsvi simulation...")
 
@@ -59,7 +61,8 @@ def run_atsvi():
 
 def run_etsvi():
     """运行 C++ 仿真节点"""
-    config_file = '/home/space/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml'
+    # config_file = '/home/space/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml'
+    config_file = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml')
 
     print("Starting etsvi simulation...")
 
@@ -88,9 +91,11 @@ def plot_results(tag, dpi_set):
     print("Generating plots...")
 
     # ---------- 1. 读取数据 ----------
-    csv_dir_ctsvi_ad = '/home/space/ros2_ws/dynamic_ws/src/vi/csv/ctsvi_ad/'
-    csv_dir_atsvi_ad = '/home/space/ros2_ws/dynamic_ws/src/vi/csv/atsvi_ad/'
-    csv_dir_etsvi = '/home/space/ros2_ws/dynamic_ws/src/vi/csv/etsvi/'
+    base = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/csv/')
+
+    csv_dir_ctsvi_ad = os.path.join(base, 'ctsvi_ad')
+    csv_dir_atsvi_ad = os.path.join(base, 'atsvi_ad')
+    csv_dir_etsvi    = os.path.join(base, 'etsvi')
 
     if not os.path.exists(os.path.join(csv_dir_atsvi_ad, 'q_history.csv')):
         print("CSV files not found. Simulation may have failed.")
@@ -126,7 +131,7 @@ def plot_results(tag, dpi_set):
     # 创建图形窗口
     # plt.ion()  # 开启交互模式
 
-    save_dir = f"/home/space/ros2_ws/dynamic_ws/src/vi/fig/{tag}"
+    save_dir = os.path.expanduser(f"~/ros2_ws/dynamic_ws/src/vi/fig/{tag}")
     os.makedirs(save_dir, exist_ok=True)   # 自动创建目录
 
     # # ---------- 2. 绘制关节角随时间 ----------

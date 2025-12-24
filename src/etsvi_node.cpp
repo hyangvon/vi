@@ -335,6 +335,17 @@ void print_progress(double t_cur, double duration, std::vector<double> runtimes,
     std::cout.flush();
 }
 
+std::string expand_user(const std::string &path)
+{
+    if (!path.empty() && path[0] == '~') {
+        const char* home = std::getenv("HOME");
+        if (home) {
+            return std::string(home) + path.substr(1);
+        }
+    }
+    return path;
+}
+
 // ---------- Main ----------
 int main(int argc, char** argv)
 {
@@ -350,7 +361,8 @@ int main(int argc, char** argv)
     double timestep = node->get_parameter("timestep").as_double();
     double duration = node->get_parameter("duration").as_double();
     double eps_diff = node->get_parameter("eps_diff").as_double();
-    std::string urdf_path = node->get_parameter("urdf_path").as_string();
+    // std::string urdf_path = node->get_parameter("urdf_path").as_string();
+    std::string urdf_path = expand_user(node->get_parameter("urdf_path").as_string());
     // double h_min = node->get_parameter("h_min").as_double();
     // double h_max = node->get_parameter("h_max").as_double();
     // int max_adapt_iters = node->get_parameter("max_adapt_iters").as_int();
