@@ -19,6 +19,7 @@ ament_auto_add_executable(ctsvi_ad_node src/ctsvi_ad_node.cpp)
 ament_auto_add_executable(atsvi_node src/atsvi_node.cpp)
 ament_auto_add_executable(atsvi_ad_node src/atsvi_ad_node.cpp)
 ament_auto_add_executable(etsvi_node src/etsvi_node.cpp)
+ament_auto_add_executable(etsvi_op_node src/etsvi_op_node.cpp)
 
 install(PROGRAMS
         scripts/ctsvi_sim.py

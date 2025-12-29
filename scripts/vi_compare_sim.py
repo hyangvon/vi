@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 
 def run_ctsvi():
     """运行 C++ 仿真节点"""
-    # config_file = '/home/space/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml'
     config_file = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml')
 
     print("Starting ctsvi simulation...")
@@ -17,12 +16,6 @@ def run_ctsvi():
             'ros2', 'run', 'vi', 'ctsvi_ad_node',
             '--ros-args', '--params-file', config_file
         ], check=True)
-
-        # ad
-        # result = subprocess.run([
-        #     'ros2', 'run', 'ctsvi', 'ctsvi_ad_node',
-        #     '--ros-args', '--params-file', config_file
-        # ], check=True)
 
         print("Simulation completed successfully")
         return True
@@ -34,7 +27,6 @@ def run_ctsvi():
 
 def run_atsvi():
     """运行 C++ 仿真节点"""
-    # config_file = '/home/space/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml'
     config_file = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml')
 
     print("Starting atsvi simulation...")
@@ -44,12 +36,6 @@ def run_atsvi():
             'ros2', 'run', 'vi', 'atsvi_ad_node',
             '--ros-args', '--params-file', config_file
         ], check=True)
-
-        # ad
-        # result = subprocess.run([
-        #     'ros2', 'run', 'ctsvi', 'ctsvi_ad_node',
-        #     '--ros-args', '--params-file', config_file
-        # ], check=True)
 
         print("Simulation completed successfully")
         return True
@@ -61,7 +47,6 @@ def run_atsvi():
 
 def run_etsvi():
     """运行 C++ 仿真节点"""
-    # config_file = '/home/space/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml'
     config_file = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml')
 
     print("Starting etsvi simulation...")
@@ -72,11 +57,25 @@ def run_etsvi():
             '--ros-args', '--params-file', config_file
         ], check=True)
 
-        # ad
-        # result = subprocess.run([
-        #     'ros2', 'run', 'ctsvi', 'ctsvi_ad_node',
-        #     '--ros-args', '--params-file', config_file
-        # ], check=True)
+        print("Simulation completed successfully")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Simulation failed: {e}")
+        if e.stderr:
+            print(f"Error output: {e.stderr}")
+        return False
+
+def run_etsvi_op():
+    """运行 C++ 仿真节点"""
+    config_file = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml')
+
+    print("Starting etsvi_op simulation...")
+
+    try:
+        result = subprocess.run([
+            'ros2', 'run', 'vi', 'etsvi_op_node',
+            '--ros-args', '--params-file', config_file
+        ], check=True)
 
         print("Simulation completed successfully")
         return True
@@ -256,7 +255,10 @@ def main():
     if not run_atsvi():
         return 1
 
-    if not run_etsvi():
+    # if not run_etsvi():
+    #     return 1
+
+    if not run_etsvi_op():
         return 1
 
     # 绘制结果
