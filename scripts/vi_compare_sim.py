@@ -65,25 +65,25 @@ def run_etsvi():
             print(f"Error output: {e.stderr}")
         return False
 
-def run_etsvi_op():
-    """运行 C++ 仿真节点"""
-    config_file = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml')
-
-    print("Starting etsvi_op simulation...")
-
-    try:
-        result = subprocess.run([
-            'ros2', 'run', 'vi', 'etsvi_op_node',
-            '--ros-args', '--params-file', config_file
-        ], check=True)
-
-        print("Simulation completed successfully")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"Simulation failed: {e}")
-        if e.stderr:
-            print(f"Error output: {e.stderr}")
-        return False
+# def run_etsvi_op():
+#     """运行 C++ 仿真节点"""
+#     config_file = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml')
+#
+#     print("Starting etsvi_op simulation...")
+#
+#     try:
+#         result = subprocess.run([
+#             'ros2', 'run', 'vi', 'etsvi_op_node',
+#             '--ros-args', '--params-file', config_file
+#         ], check=True)
+#
+#         print("Simulation completed successfully")
+#         return True
+#     except subprocess.CalledProcessError as e:
+#         print(f"Simulation failed: {e}")
+#         if e.stderr:
+#             print(f"Error output: {e.stderr}")
+#         return False
 
 def plot_results(tag, dpi_set):
     """绘制仿真结果"""
@@ -195,8 +195,8 @@ def plot_results(tag, dpi_set):
 
     # ---------- 5. 绘制timestep ----------
     plt.figure(figsize=(10, 5))
-    plt.plot(time_atsvi[1:], step_atsvi, label='Time Step of atsvi', linestyle='-.', linewidth=2)
-    plt.plot(time_atsvi[1:], step_etsvi, label='Time Step of etsvi', linestyle='--', linewidth=2)
+    plt.plot(time_atsvi, step_atsvi, label='Time Step of atsvi', linestyle='-.', linewidth=2)
+    plt.plot(time_etsvi, step_etsvi, label='Time Step of etsvi', linestyle='--', linewidth=2)
     # plt.plot(time, delta_energy, label='ΔEnergy (relative to initial)')
     plt.xlabel('Time [s]')
     plt.ylabel('Step')
@@ -249,17 +249,17 @@ def plot_results(tag, dpi_set):
 def main():
     """主函数"""
     # 运行仿真
-    if not run_ctsvi():
-        return 1
-
-    if not run_atsvi():
-        return 1
-
-    # if not run_etsvi():
+    # if not run_ctsvi():
+    #     return 1
+    #
+    # if not run_atsvi():
     #     return 1
 
-    if not run_etsvi_op():
+    if not run_etsvi():
         return 1
+
+    # if not run_etsvi_op():
+    #     return 1
 
     # 绘制结果
     if not plot_results("compare", 1000):

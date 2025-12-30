@@ -533,6 +533,7 @@ int main(int argc, char** argv)
     std::vector<Eigen::Vector3d> ee_history;
 
     time_history.push_back(0.0);
+    h_history.push_back(timestep);
     q_history.push_back(q_prev);
 
     auto t_start = high_resolution_clock::now();
