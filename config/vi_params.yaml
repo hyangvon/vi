@@ -1,44 +1,24 @@
-ctsvi_ad_node:
+/**:  # 通配符，表示所有节点都能看到下面的参数
   ros__parameters:
-    q_init: 0.2
+    q_init: 0.29
     timestep: 0.01
-    duration: 20.0
-    urdf_path: ~/ros2_ws/dynamic_ws/src/vi/urdf/7_pendulum.urdf
+    duration: 30.0
+    urdf_path: "~/ros2_ws/dynamic_ws/src/vi/urdf/7_pendulum.urdf"
+    eps_diff: 1.0e-6
 
 atsvi_ad_node:
   ros__parameters:
-    q_init: 0.2
-    timestep: 0.01
-    duration: 20.0
-    eps_diff: 1e-6
-    urdf_path: ~/ros2_ws/dynamic_ws/src/vi/urdf/7_pendulum.urdf
     h_min: 1e-6
     h_max: 0.1
     max_adapt_iters: 100
 
 etsvi_node:
   ros__parameters:
-    q_init: 0.2
-    timestep: 0.01
-    duration: 20.0
-    eps_diff: 1e-6
-    urdf_path: ~/ros2_ws/dynamic_ws/src/vi/urdf/7_pendulum.urdf
-#    h_min: 1e-6
-#    h_max: 0.1
-#    max_adapt_iters: 100
-    lyap_alpha: 1.5
-    lyap_beta: 0.5
+    lyap_alpha: 0.6
+    lyap_beta: 0.05
 
-  etsvi_op_node:
-    ros__parameters:
-      q_init: 0.2
-      timestep: 0.01
-      duration: 10.0
-      eps_diff: 1e-6
-      urdf_path: ~/ros2_ws/dynamic_ws/src/vi/urdf/7_pendulum.urdf
-      #    h_min: 1e-6
-      #    h_max: 0.1
-      #    max_adapt_iters: 100
-      pid_Kp: 0.0093
-      pid_Ki: 1e-4
-      pid_Kd: 1e-9
+etsvi_op_node:
+  ros__parameters:
+    pid_Kp: 0.0093
+    pid_Ki: 1e-4
+    pid_Kd: 1e-9
