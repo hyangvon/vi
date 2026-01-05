@@ -1,0 +1,330 @@
+#include <pinocchio/parsers/urdf.hpp>
+#include <pinocchio/algorithm/crba.hpp>
+#include <pinocchio/algorithm/kinematics.hpp>
+#include <pinocchio/algorithm/aba.hpp>
+#include <pinocchio/algorithm/energy.hpp>
+#include <pinocchio/algorithm/frames.hpp>
+#include <pinocchio/multibody/model.hpp>
+#include <pinocchio/multibody/data.hpp>
+
+#include <Eigen/Dense>
+
+#include <rclcpp/rclcpp.hpp>
+
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <chrono>
+#include <numeric>
+#include <string>
+#include <iomanip>
+
+using namespace pinocchio;
+using namespace std::chrono;
+
+// ---------- type aliases ----------
+using Vec  = Eigen::VectorXd;
+using Mat  = Eigen::MatrixXd;
+
+// 计算末端位姿（位置 + 旋转矩阵）
+std::pair<Eigen::Vector3d, Eigen::Matrix3d>
+compute_end_effector_pose(const Model &model,
+                          Data &data,
+                          int frame_id,
+                          const Vec &q)
+{
+    pinocchio::forwardKinematics(model, data, q);
+    pinocchio::updateFramePlacements(model, data);
+
+    Eigen::Vector3d ee_pos = data.oMf[frame_id].translation();
+    Eigen::Matrix3d ee_rot = data.oMf[frame_id].rotation();
+
+    return {ee_pos, ee_rot};
+}
+
+// ---------- double helpers (non-AD) ----------
+Mat inertia_matrix(const Model &model, Data &data, const Vec &q)
+{
+    pinocchio::crba(model, data, q);
+    return data.M;
+}
+
+double kinetic_energy(const Model &model, Data &data, const Vec &q_mid, const Vec &qdot)
+{
+    pinocchio::crba(model, data, q_mid);
+    Mat M = data.M;
+    return 0.5 * qdot.transpose() * M * qdot;
+}
+
+double potential_energy(const Model &model, Data &data, const Vec &q)
+{
+    return pinocchio::computePotentialEnergy(model, data, q);
+}
+
+// 计算总能量 (动能 + 势能)
+double compute_total_energy(const Model &model, Data &data, const Vec &q, const Vec &qdot)
+{
+    double T = kinetic_energy(model, data, q, qdot);
+    double U = potential_energy(model, data, q);
+    return T + U;
+}
+
+// ---------- RK4 integrator state ----------
+struct State {
+    Vec q;  // 广义坐标
+    Vec v;  // 广义速度
+};
+
+// 动力学模型：计算加速度
+// 使用 ABA (Articulated Body Algorithm) 直接计算：a = M^{-1} * (tau - C*v - g)
+State dynamics(const Model &model, Data &data, const State &state, const Vec &tau)
+{
+    const Vec &q = state.q;
+    const Vec &v = state.v;
+
+    // 使用 ABA 算法计算加速度
+    pinocchio::aba(model, data, q, v, tau);
+    Vec a = data.ddq;
+
+    State ds;
+    ds.q = v;
+    ds.v = a;
+    return ds;
+}
+
+// 向量加法辅助函数
+State add_state(const State &s1, const State &s2)
+{
+    State result;
+    result.q = s1.q + s2.q;
+    result.v = s1.v + s2.v;
+    return result;
+}
+
+// 向量标量乘法辅助函数
+State scale_state(const State &s, double c)
+{
+    State result;
+    result.q = c * s.q;
+    result.v = c * s.v;
+    return result;
+}
+
+// RK4 单步积分
+State rk4_step(const Model &model, Data &data, const State &y_n, const Vec &tau, double h)
+{
+    // k1 = f(t_n, y_n)
+    State k1 = dynamics(model, data, y_n, tau);
+
+    // k2 = f(t_n + h/2, y_n + h/2 * k1)
+    State y_mid1 = add_state(y_n, scale_state(k1, h / 2.0));
+    State k2 = dynamics(model, data, y_mid1, tau);
+
+    // k3 = f(t_n + h/2, y_n + h/2 * k2)
+    State y_mid2 = add_state(y_n, scale_state(k2, h / 2.0));
+    State k3 = dynamics(model, data, y_mid2, tau);
+
+    // k4 = f(t_n + h, y_n + h * k3)
+    State y_end = add_state(y_n, scale_state(k3, h));
+    State k4 = dynamics(model, data, y_end, tau);
+
+    // y_{n+1} = y_n + h/6 * (k1 + 2*k2 + 2*k3 + k4)
+    State y_next = y_n;
+    y_next.q = y_n.q + (h / 6.0) * (k1.q + 2.0 * k2.q + 2.0 * k3.q + k4.q);
+    y_next.v = y_n.v + (h / 6.0) * (k1.v + 2.0 * k2.v + 2.0 * k3.v + k4.v);
+
+    return y_next;
+}
+
+// CSV writers
+void write_csv(const std::string &filename, const std::vector<Vec> &rows)
+{
+    if (rows.empty()) return;
+    std::ofstream ofs(filename);
+    int ncols = rows[0].size();
+    for (size_t r = 0; r < rows.size(); ++r)
+    {
+        for (int c = 0; c < ncols; ++c)
+        {
+            ofs << std::setprecision(15) << rows[r](c);
+            if (c + 1 < ncols) ofs << ",";
+        }
+        ofs << "\n";
+    }
+}
+
+void write_csv_scalar_series(const std::string &filename, const std::vector<double> &rows)
+{
+    std::ofstream ofs(filename);
+    for (double v : rows) 
+        ofs << std::setprecision(15) << v << "\n";
+}
+
+void write_csv_3d(const std::string &filename,
+                  const std::vector<Eigen::Vector3d> &rows)
+{
+    std::ofstream ofs(filename);
+    for (const auto &v : rows)
+    {
+        ofs << std::setprecision(15)
+            << v(0) << "," << v(1) << "," << v(2) << "\n";
+    }
+}
+
+void print_progress(double t_cur, double duration, std::vector<double> runtimes, double h_step) {
+    int bar_width = 50;
+    double progress = t_cur / duration;
+    if (progress > 1.0) progress = 1.0;
+    int pos = int(bar_width * progress);
+    double avg_time = !runtimes.empty() ? std::accumulate(runtimes.begin(), runtimes.end(), 0.0) / runtimes.size() : 0.0;
+    double time_left = avg_time * (duration - t_cur) / h_step;
+    std::cout << "\r[";
+    for (int i = 0; i < bar_width; ++i) {
+        if (i < pos) std::cout << "=";
+        else if (i == pos) std::cout << ">";
+        else std::cout << " ";
+    }
+    std::cout << "] " << int(progress * 100.0) << "%, approx " << int(time_left / 60) << "mins " << int(time_left) % 60 << "s left... ";
+    std::cout.flush();
+}
+
+std::string expand_user(const std::string &path)
+{
+    if (!path.empty() && path[0] == '~') {
+        const char* home = std::getenv("HOME");
+        if (home) {
+            return std::string(home) + path.substr(1);
+        }
+    }
+    return path;
+}
+
+// ---------- Main ----------
+int main(int argc, char** argv)
+{
+    std::cout.setf(std::ios::unitbuf);
+    rclcpp::init(argc, argv);
+    auto node = std::make_shared<rclcpp::Node>(
+        "rk4_node",
+        rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)
+    );
+
+    // Parameters (provide defaults via launch)
+    double q_init = node->get_parameter("q_init").as_double();
+    double timestep = node->get_parameter("timestep").as_double();
+    double duration = node->get_parameter("duration").as_double();
+    double eps_diff = node->get_parameter("eps_diff").as_double();
+    std::string urdf_path = expand_user(node->get_parameter("urdf_path").as_string());
+
+    RCLCPP_INFO(node->get_logger(), "Using URDF: %s", urdf_path.c_str());
+    RCLCPP_INFO(node->get_logger(), "Duration = %.3f, Timestep = %.6f, eps_diff = %.1e", duration, timestep, eps_diff);
+
+    // load model (double) and data
+    Model model;
+    try {
+        pinocchio::urdf::buildModel(urdf_path, model);
+    } catch (const std::exception &e) {
+        RCLCPP_ERROR(node->get_logger(), "Error loading URDF: %s", e.what());
+        return 1;
+    }
+    Data data(model);
+    model.gravity.linear(Eigen::Vector3d(0, 0, -9.81));
+
+    // 获取末端 frame id
+    int link_tcp_id = model.getFrameId("link_tcp");
+    if (link_tcp_id == -1) {
+        RCLCPP_ERROR(node->get_logger(), "TCP frame not found!");
+        return 1;
+    }
+    RCLCPP_INFO(node->get_logger(), "Model has nq=%d, nv=%d", model.nq, model.nv);
+
+    int n = model.nq;
+    int n_steps = static_cast<int>(duration / timestep);
+
+    // initial conditions
+    State state;
+    state.q = Vec::Constant(n, q_init);
+    state.v = Vec::Zero(n);
+    Vec tau = Vec::Zero(n);  // 控制扭矩 (目前设为零)
+
+    // 历史记录
+    std::vector<Vec> q_history;
+    std::vector<Vec> v_history;
+    std::vector<double> time_history;
+    std::vector<double> energy_history;
+    std::vector<double> delta_energy_history;
+    std::vector<double> runtimes;
+    std::vector<Eigen::Vector3d> ee_history;
+
+    q_history.push_back(state.q);
+    v_history.push_back(state.v);
+    time_history.push_back(0.0);
+
+    auto t_start = high_resolution_clock::now();
+
+    // 初始能量
+    double E_init = compute_total_energy(model, data, state.q, state.v);
+    energy_history.push_back(E_init);
+    delta_energy_history.push_back(0.0);
+
+    auto [ee_pos0, ee_rot0] = compute_end_effector_pose(model, data, link_tcp_id, state.q);
+    ee_history.push_back(ee_pos0);
+
+    // RK4 仿真循环
+    double t_cur = 0.0;
+    for (int step = 0; step < n_steps && t_cur < duration - 1e-12; ++step)
+    {
+        auto t0 = high_resolution_clock::now();
+
+        // 单步 RK4 积分
+        State state_next = rk4_step(model, data, state, tau, timestep);
+        state = state_next;
+
+        t_cur += timestep;
+        time_history.push_back(t_cur);
+        q_history.push_back(state.q);
+        v_history.push_back(state.v);
+
+        // 能量计算
+        double E_cur = compute_total_energy(model, data, state.q, state.v);
+        energy_history.push_back(E_cur);
+        delta_energy_history.push_back(E_cur - E_init);
+
+        // 末端位置
+        auto [ee_pos, ee_rot] = compute_end_effector_pose(model, data, link_tcp_id, state.q);
+        ee_history.push_back(ee_pos);
+
+        auto t1 = high_resolution_clock::now();
+        double elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
+        runtimes.push_back(elapsed);
+
+        print_progress(t_cur, duration, runtimes, timestep);
+    }
+    std::cout << "\n";
+
+    auto t_end = high_resolution_clock::now();
+    double total_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t_end - t_start).count();
+    double avg_time = !runtimes.empty() ? std::accumulate(runtimes.begin(), runtimes.end(), 0.0) / runtimes.size() : 0.0;
+    RCLCPP_INFO(node->get_logger(), "Simulation finished, wall time: %f s, Average step time: %f ms", total_elapsed, avg_time * 1e3);
+
+    // Save CSVs
+    std::string csv_dir = "src/vi/csv/rk4/";
+    std::string cmd = "mkdir -p " + csv_dir;
+    int unused = system(cmd.c_str());
+    (void)unused;
+
+    write_csv(csv_dir + "q_history.csv", q_history);
+    write_csv(csv_dir + "v_history.csv", v_history);
+    write_csv_scalar_series(csv_dir + "time_history.csv", time_history);
+    write_csv_scalar_series(csv_dir + "energy_history.csv", energy_history);
+    write_csv_scalar_series(csv_dir + "delta_energy_history.csv", delta_energy_history);
+    write_csv_3d(csv_dir + "ee_history.csv", ee_history);
+
+    std::ofstream avg_time_file(csv_dir + "avg_runtime.txt");
+    avg_time_file << avg_time * 1000 << std::endl;  // 保存为毫秒单位
+    avg_time_file.close();
+
+    RCLCPP_INFO(node->get_logger(), "Data saved to %s", csv_dir.c_str());
+
+    return 0;
+}

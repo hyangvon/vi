@@ -21,6 +21,7 @@ ament_auto_add_executable(atsvi_ad_node src/atsvi_ad_node.cpp)
 ament_auto_add_executable(etsvi_node src/etsvi_node.cpp)
 ament_auto_add_executable(etsvi_lyapunov_node src/etsvi_lyapunov_node.cpp)
 ament_auto_add_executable(etsvi_op_node src/etsvi_op_node.cpp)
+ament_auto_add_executable(rk4_node src/rk4_node.cpp)
 
 install(PROGRAMS
         scripts/ctsvi_sim.py
@@ -29,6 +30,7 @@ install(PROGRAMS
         scripts/atsvi_ad_sim.py
         scripts/vi_compare_sim.py
         scripts/etsvi_sim.py
+        scripts/rk4_vi_compare_sim.py
         DESTINATION lib/${PROJECT_NAME}
 )
 
