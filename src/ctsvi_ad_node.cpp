@@ -456,6 +456,10 @@ int main(int argc, char** argv)
     write_csv_scalar_series("src/vi/csv/ctsvi_ad/energy_U_history.csv", energy_U_history);
     write_csv_3d("src/vi/csv/ctsvi_ad/ee_history.csv", ee_history);
 
+    std::ofstream avg_time_file("src/vi/csv/ctsvi_ad/avg_runtime.txt");
+    avg_time_file << avg_time * 1000 << std::endl; // 保存为毫秒单位
+    avg_time_file.close();
+
     RCLCPP_INFO(node->get_logger(), "Saved CSVs.");
 
     // rclcpp::shutdown();

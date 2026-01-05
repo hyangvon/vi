@@ -85,6 +85,70 @@ def run_etsvi():
 #             print(f"Error output: {e.stderr}")
 #         return False
 
+def plot_runtime_comparison(tag, dpi_set):
+    """绘制三种算法的平均运行时间对比图"""
+    print("Generating runtime comparison plot...")
+
+    base = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/csv/')
+
+    # 定义算法和对应的文件路径
+    algorithms = {
+        'ctsvi_ad': 'ctsvi_ad/avg_runtime.txt',
+        'atsvi_ad': 'atsvi_ad/avg_runtime.txt',
+        'etsvi': 'etsvi/avg_runtime.txt'
+    }
+
+    avg_times = []
+    labels = []
+
+    for alg_name, alg_file in algorithms.items():
+        try:
+            with open(os.path.join(base, alg_file), 'r') as f:
+                avg_time = float(f.read().strip())
+                avg_times.append(avg_time)
+                labels.append(alg_name.upper())
+        except FileNotFoundError:
+            print(f"Warning: {alg_file} not found, using default value 0")
+            avg_times.append(0)
+            labels.append(alg_name.upper())
+
+    # 绘制柱状图
+    plt.figure(figsize=(10, 6))
+    bars = plt.bar(labels, avg_times,
+                   color=['skyblue', 'lightgreen', 'lightcoral'],
+                   alpha=0.7,
+                   edgecolor='black',
+                   linewidth=1)
+
+    # 在柱子上添加数值标签
+    for bar, time_val in zip(bars, avg_times):
+        plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(avg_times)*0.01,
+                 f'{time_val:.3f}ms',
+                 ha='center',
+                 va='bottom',
+                 fontsize=12,
+                 fontweight='bold')
+
+    plt.xlabel('Algorithms', fontsize=12)
+    plt.ylabel('Average Runtime (ms)', fontsize=12)
+    plt.title('Average Runtime Comparison', fontsize=14, fontweight='bold')
+    plt.grid(axis='y', alpha=0.3)
+    plt.tight_layout()
+
+    # 保存图片
+    save_dir = os.path.expanduser(f"~/ros2_ws/dynamic_ws/src/vi/fig/{tag}")
+    os.makedirs(save_dir, exist_ok=True)
+    filename = f"runtime_comparison_{tag}.png"
+    save_path = os.path.join(save_dir, filename)
+    plt.savefig(save_path, dpi=dpi_set)
+    print("Saved runtime comparison:", save_path)
+
+    # 显示数值
+    for label, time_val in zip(labels, avg_times):
+        print(f"{label}: {time_val:.3f}ms")
+
+    plt.show()
+
 def plot_results(tag, dpi_set):
     """绘制仿真结果"""
     print("Generating plots...")
@@ -167,7 +231,7 @@ def plot_results(tag, dpi_set):
     plt.title('Energy evolution')
     plt.legend()
     plt.grid(True)
-    plt.ylim(-0.05, 0.05)
+    # plt.ylim(-0.05, 0.05)
     plt.tight_layout()
     filename = f"energy_{tag}.png"
     save_path = os.path.join(save_dir, filename)
@@ -237,6 +301,8 @@ def plot_results(tag, dpi_set):
     plt.savefig(save_path, dpi = dpi_set)
     print("Saved:", save_path)
     # plt.show()
+
+    plot_runtime_comparison(tag, dpi_set)
 
     # print("Plotting completed. Close all plot windows to exit.")
 

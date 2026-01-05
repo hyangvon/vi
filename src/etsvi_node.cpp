@@ -489,6 +489,10 @@ int main(int argc, char** argv)
     write_csv_scalar_series(csv_dir + "h_history.csv", h_history);
     write_csv_3d(csv_dir + "ee_history.csv", ee_history);
 
+    std::ofstream avg_time_file(csv_dir + "avg_runtime.txt");
+    avg_time_file << avg_time * 1000 << std::endl; // 保存为毫秒单位
+    avg_time_file.close();
+
     RCLCPP_INFO(node->get_logger(), "Data saved to %s", csv_dir.c_str());
 
     return 0;
