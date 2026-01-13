@@ -31,6 +31,7 @@ install(PROGRAMS
         scripts/vi_compare_sim.py
         scripts/etsvi_sim.py
         scripts/rk4_vi_compare_sim.py
+        scripts/pybullet_sim.py
         DESTINATION lib/${PROJECT_NAME}
 )
 

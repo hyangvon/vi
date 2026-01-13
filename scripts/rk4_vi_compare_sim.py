@@ -126,6 +126,30 @@ def run_rk4():
             print(f"Error output: {e.stderr}")
         return False
 
+
+def run_pybullet_inline():
+    """在当前 Python 进程中加载并运行 scripts/pybullet_sim.py 的 main()，便于一键生成 CSV 数据。"""
+    script_path = os.path.join(os.path.dirname(__file__), 'pybullet_sim.py')
+    if not os.path.exists(script_path):
+        print(f"pybullet script not found: {script_path}")
+        return False
+
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('pybullet_sim', script_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        if hasattr(module, 'main'):
+            print('Running pybullet_sim.main()...')
+            module.main()
+            return True
+        else:
+            print('pybullet_sim.py does not define main()')
+            return False
+    except Exception as e:
+        print(f'Error running pybullet inline: {e}')
+        return False
+
 def plot_runtime_comparison(tag, dpi_set):
     """绘制ETSVI和RK4的平均运行时间对比图"""
     print("Generating runtime comparison plot...")
@@ -191,33 +215,64 @@ def plot_results(tag, dpi_set):
 
     csv_dir_etsvi = os.path.join(base, 'etsvi')
     csv_dir_rk4   = os.path.join(base, 'rk4')
+    csv_dir_py    = os.path.join(base, 'pybullet')
 
     if not os.path.exists(os.path.join(csv_dir_rk4, 'q_history.csv')):
         print("CSV files not found. Simulation may have failed.")
         return False
 
+    # 读取 CSV（支持可选的 pybullet 目录）
     try:
         tcp_etsvi = np.loadtxt(os.path.join(csv_dir_etsvi, 'ee_history.csv'), delimiter=',')
         tcp_rk4 = np.loadtxt(os.path.join(csv_dir_rk4, 'ee_history.csv'), delimiter=',')
-        
+
         delta_energy_etsvi = np.loadtxt(os.path.join(csv_dir_etsvi, 'delta_energy_history.csv'), delimiter=',')
         delta_energy_rk4 = np.loadtxt(os.path.join(csv_dir_rk4, 'delta_energy_history.csv'), delimiter=',')
-        
+
         time_etsvi = np.loadtxt(os.path.join(csv_dir_etsvi, 'time_history.csv'), delimiter=',')
         time_rk4 = np.loadtxt(os.path.join(csv_dir_rk4, 'time_history.csv'), delimiter=',')
+
+        # optional pybullet
+        tcp_py = None
+        delta_energy_py = None
+        time_py = None
+        if os.path.exists(os.path.join(csv_dir_py, 'ee_history.csv')):
+            tcp_py = np.loadtxt(os.path.join(csv_dir_py, 'ee_history.csv'), delimiter=',')
+        if os.path.exists(os.path.join(csv_dir_py, 'delta_energy_history.csv')):
+            delta_energy_py = np.loadtxt(os.path.join(csv_dir_py, 'delta_energy_history.csv'), delimiter=',')
+        if os.path.exists(os.path.join(csv_dir_py, 'time_history.csv')):
+            time_py = np.loadtxt(os.path.join(csv_dir_py, 'time_history.csv'), delimiter=',')
     except Exception as e:
         print(f"Error reading CSV files: {e}")
         return False
 
     # ---------- 绘制能量曲线 ----------
     _init_fig()
+    # 使用调色板和更明显的样式以增强可区分度
+    cmap = plt.get_cmap('tab10')
+    c_etsvi = cmap(0)
+    c_rk4 = cmap(1)
+    c_py = cmap(2)
+
+    # 计算采样间隔以减少标记密度
+    def _markevery(arr, target=50):
+        try:
+            n = max(1, int(len(arr) / target))
+        except Exception:
+            n = 1
+        return n
 
     # ETSVI
-    plt.plot(time_etsvi, delta_energy_etsvi, label='ΔEnergy_etsvi', linestyle='--', linewidth=2)
+    plt.plot(time_etsvi, delta_energy_etsvi, label='ΔEnergy of C-ATSVI', color=c_etsvi,
+             linestyle='-', linewidth=2.0)
 
     # RK4
-    plt.plot(time_rk4, delta_energy_rk4, label='ΔEnergy_rk4', linestyle=':', linewidth=2)
-
+    plt.plot(time_rk4, delta_energy_rk4, label='ΔEnergy of RK4', color=c_rk4,
+             linestyle='-.', linewidth=2.0)
+    # PyBullet (if available)
+    if 'delta_energy_py' in locals() and delta_energy_py is not None and time_py is not None:
+        plt.plot(time_py, delta_energy_py, label='ΔEnergy of PyBullet', color=c_py,
+                 linestyle='--', linewidth=2.0)
     plt.xlabel('Time [s]')
     plt.ylabel('Energy [J]')
     plt.title('Energy evolution')
@@ -231,20 +286,32 @@ def plot_results(tag, dpi_set):
     
     # ---------- TCP 位置曲线 ----------
     _init_fig()
-    # ETSVI
-    plt.plot(time_etsvi, tcp_etsvi[:, 0], label='px_etsvi', linestyle='--', linewidth=2)
-    plt.plot(time_etsvi, tcp_etsvi[:, 2], label='pz_etsvi', linestyle='--', linewidth=2)
+    # ETSVI (TCP position)
+    # plt.plot(time_etsvi, tcp_etsvi[:, 0], label='px_etsvi', color=c_etsvi, linestyle='--', linewidth=1.5,
+    #          marker='^', markersize=3, markevery=_markevery(time_etsvi))
+    plt.plot(time_etsvi, tcp_etsvi[:, 2], label='position Z of C-ATSVI', color=c_etsvi, linestyle='-', linewidth=2.0,
+             alpha=0.9, marker=None)
 
     # RK4
-    plt.plot(time_rk4, tcp_rk4[:, 0], label='px_rk4', linestyle=':', linewidth=2)
-    plt.plot(time_rk4, tcp_rk4[:, 2], label='pz_rk4', linestyle=':', linewidth=2)
+    # plt.plot(time_rk4, tcp_rk4[:, 0], label='px_rk4', color=c_rk4, linestyle=':', linewidth=1.5,
+    #          marker='s', markersize=3, markevery=_markevery(time_rk4))
+    plt.plot(time_rk4, tcp_rk4[:, 2], label='position Z of RK4', color=c_rk4, linestyle='-.', linewidth=2.0,
+             alpha=0.9, marker=None)
+
+    # PyBullet
+    if 'tcp_py' in locals() and tcp_py is not None:
+        # tcp_py may be (N,3)
+        # plt.plot(time_py, tcp_py[:, 0], label='px_pybullet', color=c_py, linestyle='-.', linewidth=1.5,
+        #          marker='o', markersize=3, markevery=_markevery(time_py), alpha=0.9)
+        plt.plot(time_py, tcp_py[:, 2], label='position Z of PyBullet', color=c_py, linestyle='--', linewidth=2.0,
+                 alpha=0.9, marker=None)
 
     plt.xlabel('Time [s]')
     plt.ylabel('Position [m]')
     plt.title('TCP Position')
     plt.legend(loc='upper left')
     plt.grid(True)
-    plt.ylim(-8, 6)
+    plt.ylim(-8, -3)
     filename = f"tcp_{tag}.png"
     _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
 
@@ -260,6 +327,10 @@ def main():
 
     # if not run_rk4():
     #     return 1
+
+    # # 运行 pybullet 对照仿真（内联执行 pybullet_sim.py）
+    # if not run_pybullet_inline():
+    #     print("Warning: pybullet inline run failed or skipped. Proceeding to plotting with available CSVs.")
 
     # 绘制结果
     if not plot_results("etsvi_rk4_compare", 1000):
