@@ -32,6 +32,7 @@ install(PROGRAMS
         scripts/etsvi_sim.py
         scripts/rk4_vi_compare_sim.py
         scripts/pybullet_sim.py
+        scripts/plot_7dof_pendulum.py
         DESTINATION lib/${PROJECT_NAME}
 )
 

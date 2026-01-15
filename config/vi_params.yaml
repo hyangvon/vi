@@ -2,7 +2,7 @@
   ros__parameters:
     q_init: 0.2
     timestep: 0.01
-    duration: 30.0
+    duration: 40.0
     urdf_path: "~/ros2_ws/dynamic_ws/src/vi/urdf/7_pendulum.urdf"
     eps_diff: 1.0e-6
 
@@ -15,7 +15,7 @@ atsvi_ad_node:
 etsvi_node:
   ros__parameters:
     lyap_alpha: 0.4
-    lyap_beta: 0.02
+    lyap_beta: 0.04
 
 etsvi_op_node:
   ros__parameters:
