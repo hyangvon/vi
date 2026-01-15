@@ -4,6 +4,10 @@ import sys
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+try:
+    import yaml
+except Exception:
+    yaml = None
 
 # 绘图统一风格与辅助函数
 FIGSIZE = (10, 5)
@@ -34,9 +38,64 @@ def _init_fig(figsize=None):
     plt.figure(figsize=figsize)
 
 def _save_fig(tag, filename, dpi, show=True):
-    save_dir = os.path.expanduser(f"~/ros2_ws/dynamic_ws/src/vi/fig/{tag}")
+    # 保存到按参数命名的子文件夹下，按 experiment params / tag 分类
+    params_label = build_params_label()
+    save_dir = os.path.expanduser(f"~/ros2_ws/dynamic_ws/src/vi/fig/{params_label}/{tag}")
     os.makedirs(save_dir, exist_ok=True)
-    save_path = os.path.join(save_dir, filename)
+
+    # 尝试从配置文件读取运行参数并加入文件名
+    config_path = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml')
+    q_init = 'NA'
+    timestep = 'NA'
+    duration = 'NA'
+    lyap_alpha = 'NA'
+    lyap_beta = 'NA'
+    try:
+        if yaml is not None:
+            with open(config_path, 'r') as f:
+                cfg = yaml.safe_load(f)
+            root = cfg.get('/**', {}) if isinstance(cfg, dict) else {}
+            rp = root.get('ros__parameters', {}) if isinstance(root, dict) else {}
+            q_init = rp.get('q_init', q_init)
+            timestep = rp.get('timestep', timestep)
+            duration = rp.get('duration', duration)
+            ets = cfg.get('etsvi_node', {})
+            ets_rp = ets.get('ros__parameters', {}) if isinstance(ets, dict) else {}
+            lyap_alpha = ets_rp.get('lyap_alpha', lyap_alpha)
+            lyap_beta = ets_rp.get('lyap_beta', lyap_beta)
+        else:
+            # 备用：简单文本搜索
+            with open(config_path, 'r') as f:
+                txt = f.read()
+            import re
+            def _find(k):
+                m = re.search(rf"{k}\s*:\s*([0-9.eE+-]+)", txt)
+                return m.group(1) if m else 'NA'
+            q_init = _find('q_init')
+            timestep = _find('timestep')
+            duration = _find('duration')
+            lyap_alpha = _find('lyap_alpha')
+            lyap_beta = _find('lyap_beta')
+    except Exception:
+        pass
+
+    def _format_param(v):
+        # If numeric-like and represents an integer (e.g. 10.0) emit integer string '10'
+        try:
+            fv = float(v)
+            if fv.is_integer():
+                return str(int(fv))
+            # otherwise use decimal with 'p' as separator to match filename convention
+            s = str(v)
+            return s.replace('.', 'p').replace(' ', '')
+        except Exception:
+            s = str(v)
+            return s.replace('.', 'p').replace(' ', '')
+
+    params_str = f"q{_format_param(q_init)}_dt{_format_param(timestep)}_T{_format_param(duration)}_a{_format_param(lyap_alpha)}_b{_format_param(lyap_beta)}"
+    name, ext = os.path.splitext(filename)
+    new_filename = f"{name}_{params_str}{ext}"
+    save_path = os.path.join(save_dir, new_filename)
     plt.tight_layout()
     plt.savefig(save_path, dpi=dpi)
     print(f"Saved: {save_path}")
@@ -44,6 +103,59 @@ def _save_fig(tag, filename, dpi, show=True):
         plt.show()
     else:
         plt.close()
+
+
+def build_params_label(include_lyap=True):
+    config_path = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml')
+    q_init = 'NA'
+    timestep = 'NA'
+    duration = 'NA'
+    lyap_alpha = None
+    lyap_beta = None
+    try:
+        if yaml is not None:
+            with open(config_path, 'r') as f:
+                cfg = yaml.safe_load(f)
+            root = cfg.get('/**', {}) if isinstance(cfg, dict) else {}
+            rp = root.get('ros__parameters', {}) if isinstance(root, dict) else {}
+            q_init = rp.get('q_init', q_init)
+            timestep = rp.get('timestep', timestep)
+            duration = rp.get('duration', duration)
+            ets = cfg.get('etsvi_node', {})
+            ets_rp = ets.get('ros__parameters', {}) if isinstance(ets, dict) else {}
+            lyap_alpha = ets_rp.get('lyap_alpha', None)
+            lyap_beta = ets_rp.get('lyap_beta', None)
+        else:
+            with open(config_path, 'r') as f:
+                txt = f.read()
+            import re
+            def _find(k):
+                m = re.search(rf"{k}\s*:\s*([0-9.eE+-]+)", txt)
+                return m.group(1) if m else None
+            q_init = _find('q_init') or q_init
+            timestep = _find('timestep') or timestep
+            duration = _find('duration') or duration
+            lyap_alpha = _find('lyap_alpha')
+            lyap_beta = _find('lyap_beta')
+    except Exception:
+        pass
+
+    def _format_param(v):
+        try:
+            fv = float(v)
+            if fv.is_integer():
+                return str(int(fv))
+            return str(v).replace('.', 'p').replace(' ', '')
+        except Exception:
+            return str(v).replace('.', 'p').replace(' ', '')
+
+    label = f"q{_format_param(q_init)}_dt{_format_param(timestep)}_T{_format_param(duration)}"
+    if include_lyap:
+        # use defaults if not found
+        a = lyap_alpha if lyap_alpha is not None else 'NA'
+        b = lyap_beta if lyap_beta is not None else 'NA'
+        label += f"_a{_format_param(a)}_b{_format_param(b)}"
+    return label
 
 
 def run_ctsvi():
@@ -130,25 +242,26 @@ def plot_runtime_comparison(tag, dpi_set):
     """绘制三种算法的平均运行时间对比图"""
     print("Generating runtime comparison plot...")
     base = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/csv/')
+    params_base = build_params_label()
 
     # 定义算法和对应的文件路径
     algorithms = {
-        'ctsvi_ad': 'ctsvi_ad/avg_runtime.txt',
-        'atsvi_ad': 'atsvi_ad/avg_runtime.txt',
-        'etsvi': 'etsvi/avg_runtime.txt'
+        'ctsvi_ad': os.path.join(base, params_base, 'ctsvi_ad', 'avg_runtime.txt'),
+        'atsvi_ad': os.path.join(base, params_base, 'atsvi_ad', 'avg_runtime.txt'),
+        'etsvi': os.path.join(base, params_base, 'etsvi', 'avg_runtime.txt')
     }
 
     avg_times = []
     labels = []
 
-    for alg_name, alg_file in algorithms.items():
+    for alg_name, alg_path in algorithms.items():
         try:
-            with open(os.path.join(base, alg_file), 'r') as f:
+            with open(alg_path, 'r') as f:
                 avg_time = float(f.read().strip())
                 avg_times.append(avg_time)
                 labels.append(alg_name.upper())
         except FileNotFoundError:
-            print(f"Warning: {alg_file} not found, using default value 0")
+            print(f"Warning: {alg_path} not found, using default value 0")
             avg_times.append(0)
             labels.append(alg_name.upper())
 
@@ -188,19 +301,21 @@ def plot_runtime_vs_energy(tag, dpi_set):
     """以平均运行时间为横轴，平均能量误差为纵轴，绘制三种方法对比图并保存。"""
     print("Generating runtime vs energy plot...")
     base = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/csv/')
+    params_base = build_params_label()
+    params_etsvi = build_params_label()
 
     methods = {
         'CTSVI': {
-            'runtime': os.path.join(base, 'ctsvi_ad', 'avg_runtime.txt'),
-            'energy': os.path.join(base, 'ctsvi_ad', 'delta_energy_history.csv')
+            'runtime': os.path.join(base, params_base, 'ctsvi_ad', 'avg_runtime.txt'),
+            'energy': os.path.join(base, params_base, 'ctsvi_ad', 'delta_energy_history.csv')
         },
         'ATSVI': {
-            'runtime': os.path.join(base, 'atsvi_ad', 'avg_runtime.txt'),
-            'energy': os.path.join(base, 'atsvi_ad', 'delta_energy_history.csv')
+            'runtime': os.path.join(base, params_base, 'atsvi_ad', 'avg_runtime.txt'),
+            'energy': os.path.join(base, params_base, 'atsvi_ad', 'delta_energy_history.csv')
         },
         'C-ATSVI': {
-            'runtime': os.path.join(base, 'etsvi', 'avg_runtime.txt'),
-            'energy': os.path.join(base, 'etsvi', 'delta_energy_history.csv')
+            'runtime': os.path.join(base, params_etsvi, 'etsvi', 'avg_runtime.txt'),
+            'energy': os.path.join(base, params_etsvi, 'etsvi', 'delta_energy_history.csv')
         }
     }
 
@@ -253,10 +368,11 @@ def compute_and_save_energy_errors(tag):
     输出保存到: src/vi/csv/<tag>/energy_error_summary_<tag>.csv
     """
     base = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/csv/')
+    params_base = build_params_label()
     methods = {
-        'CTSVI_AD': os.path.join(base, 'ctsvi_ad', 'delta_energy_history.csv'),
-        'ATSVI_AD': os.path.join(base, 'atsvi_ad', 'delta_energy_history.csv'),
-        'ETSVI': os.path.join(base, 'etsvi', 'delta_energy_history.csv'),
+        'CTSVI_AD': os.path.join(base, params_base, 'ctsvi_ad', 'delta_energy_history.csv'),
+        'ATSVI_AD': os.path.join(base, params_base, 'atsvi_ad', 'delta_energy_history.csv'),
+        'ETSVI': os.path.join(base, params_base, 'etsvi', 'delta_energy_history.csv'),
     }
 
     results = []
@@ -284,8 +400,8 @@ def compute_and_save_energy_errors(tag):
     for name, mean_abs, rms, n in results:
         print(f"- {name}: samples={n}, mean_abs_error={mean_abs:.6e}, rms={rms:.6e}")
 
-    # 保存 CSV 到子目录 tag
-    out_dir = os.path.join(base, tag)
+    # 保存 CSV 到对应参数子文件夹下（包含 lyap）
+    out_dir = os.path.join(base, params_base)
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, f'energy_error_summary_{tag}.csv')
     with open(out_path, 'w') as f:
@@ -365,10 +481,13 @@ def plot_results(tag, dpi_set):
 
     # ---------- 1. 读取数据 ----------
     base = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/csv/')
+    params_base = build_params_label(include_lyap=True)
 
-    csv_dir_ctsvi_ad = os.path.join(base, 'ctsvi_ad')
-    csv_dir_atsvi_ad = os.path.join(base, 'atsvi_ad')
-    csv_dir_etsvi    = os.path.join(base, 'etsvi')
+    csv_dir_ctsvi_ad = os.path.join(base, params_base, 'ctsvi_ad')
+    csv_dir_atsvi_ad = os.path.join(base, params_base, 'atsvi_ad')
+    csv_dir_etsvi    = os.path.join(base, params_base, 'etsvi')
+
+    print(f"{csv_dir_ctsvi_ad}")
 
     if not os.path.exists(os.path.join(csv_dir_atsvi_ad, 'q_history.csv')):
         print("CSV files not found. Simulation may have failed.")
@@ -534,11 +653,8 @@ def main():
     # if not run_etsvi():
     #     return 1
 
-    # if not run_etsvi_op():
-    #     return 1
-
     # 绘制结果
-    if not plot_results("compare", 1000):
+    if not plot_results("vs_c_a", 1000):
         return 1
 
     print("All tasks completed successfully!")

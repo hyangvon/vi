@@ -20,6 +20,8 @@
 #include <chrono>
 #include <numeric>
 #include <string>
+#include <sstream>
+#include <algorithm>
 #include <iomanip>
 
 // Fix Eigen <-> CppAD compatibility for isfinite()
@@ -320,6 +322,20 @@ std::string expand_user(const std::string &path)
     return path;
 }
 
+std::string fmt_double_label(double v)
+{
+    std::ostringstream oss;
+    oss.setf(std::ios::fmtflags(0), std::ios::floatfield);
+    oss<<std::fixed<<std::setprecision(6)<<v;
+    std::string s = oss.str();
+    if (s.find('.') != std::string::npos) {
+        while (!s.empty() && s.back() == '0') s.pop_back();
+        if (!s.empty() && s.back() == '.') s.pop_back();
+    }
+    std::replace(s.begin(), s.end(), '.', 'p');
+    return s;
+}
+
 // ---------- Main ----------
 int main(int argc, char** argv)
 {
@@ -477,10 +493,14 @@ int main(int argc, char** argv)
     double avg_time = !runtimes.empty() ? std::accumulate(runtimes.begin(), runtimes.end(), 0.0) / runtimes.size() : 0.0;
     RCLCPP_INFO(node->get_logger(), "Simulation finished, wall time: %f s, Average step time: %f ms", total_elapsed, avg_time*1e3);
 
-    // Save CSVs
-    std::string csv_dir = "src/vi/csv/etsvi/";
-    std::string cmd = "mkdir -p " + csv_dir;
-    int unused = system(cmd.c_str()); (void)unused;
+    // Save CSVs into parameterized folder including lyapunov params: src/vi/csv/q<q>_dt<dt>_T<T>_a<alpha>_b<beta>/etsvi/
+    std::string params_label = std::string("q") + fmt_double_label(q_init)
+        + std::string("_dt") + fmt_double_label(timestep)
+        + std::string("_T") + fmt_double_label(duration)
+        + std::string("_a") + fmt_double_label(alpha)
+        + std::string("_b") + fmt_double_label(beta);
+    std::string csv_dir = std::string("src/vi/csv/") + params_label + std::string("/etsvi/");
+    std::string cmd = "mkdir -p " + csv_dir; int unused = system(cmd.c_str()); (void)unused;
 
     write_csv(csv_dir + "q_history.csv", q_history);
     write_csv_scalar_series(csv_dir + "time_history.csv", time_history);
@@ -490,7 +510,7 @@ int main(int argc, char** argv)
     write_csv_3d(csv_dir + "ee_history.csv", ee_history);
 
     std::ofstream avg_time_file(csv_dir + "avg_runtime.txt");
-    avg_time_file << avg_time * 1000 << std::endl; // 保存为毫秒单位
+    avg_time_file << avg_time * 1000 << std::endl;
     avg_time_file.close();
 
     RCLCPP_INFO(node->get_logger(), "Data saved to %s", csv_dir.c_str());

@@ -32,6 +32,9 @@ namespace Eigen {
 #include <chrono>
 #include <numeric>
 #include <string>
+#include <sstream>
+#include <algorithm>
+#include <regex>
 #include <iomanip>
 
 using namespace std::chrono;
@@ -278,6 +281,37 @@ std::string expand_user(const std::string &path)
     return path;
 }
 
+std::string fmt_double_label(double v)
+{
+    std::ostringstream oss;
+    oss.setf(std::ios::fmtflags(0), std::ios::floatfield);
+    oss<<std::fixed<<std::setprecision(6)<<v;
+    std::string s = oss.str();
+    if (s.find('.') != std::string::npos) {
+        while (!s.empty() && s.back() == '0') s.pop_back();
+        if (!s.empty() && s.back() == '.') s.pop_back();
+    }
+    std::replace(s.begin(), s.end(), '.', 'p');
+    return s;
+}
+
+std::pair<double,double> read_lyap_from_config()
+{
+    std::string cfg = "src/vi/config/vi_params.yaml";
+    std::ifstream ifs(cfg);
+    double a = 0.0, b = 0.0;
+    if (!ifs) return {a,b};
+    std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+    std::smatch m;
+    try {
+        std::regex ra("lyap_alpha\\s*:\\s*([0-9.eE+-]+)");
+        std::regex rb("lyap_beta\\s*:\\s*([0-9.eE+-]+)");
+        if (std::regex_search(content, m, ra)) a = std::stod(m[1].str());
+        if (std::regex_search(content, m, rb)) b = std::stod(m[1].str());
+    } catch (...) {}
+    return {a,b};
+}
+
 // ---------- Main ----------
 int main(int argc, char** argv)
 {
@@ -448,16 +482,26 @@ int main(int argc, char** argv)
         avg_time*1e3);
 
 
-    write_csv("src/vi/csv/ctsvi_ad/q_history.csv", q_history);
-    write_csv_scalar_series("src/vi/csv/ctsvi_ad/time_history.csv", time_history);
-    write_csv_scalar_series("src/vi/csv/ctsvi_ad/energy_history.csv", energy_history);
-    write_csv_scalar_series("src/vi/csv/ctsvi_ad/delta_energy_history.csv", delta_energy_history);
-    write_csv_scalar_series("src/vi/csv/ctsvi_ad/energy_T_history.csv", energy_T_history);
-    write_csv_scalar_series("src/vi/csv/ctsvi_ad/energy_U_history.csv", energy_U_history);
-    write_csv_3d("src/vi/csv/ctsvi_ad/ee_history.csv", ee_history);
+    // Save into parameterized folder including lyap params: src/vi/csv/q<q>_dt<dt>_T<T>_a<alpha>_b<beta>/ctsvi_ad/
+    auto [a_val, b_val] = read_lyap_from_config();
+    std::string params_label = std::string("q") + fmt_double_label(q_init)
+        + std::string("_dt") + fmt_double_label(timestep)
+        + std::string("_T") + fmt_double_label(duration)
+        + std::string("_a") + fmt_double_label(a_val)
+        + std::string("_b") + fmt_double_label(b_val);
+    std::string csv_dir = std::string("src/vi/csv/") + params_label + std::string("/ctsvi_ad/");
+    std::string cmd = "mkdir -p " + csv_dir; int unused = system(cmd.c_str()); (void)unused;
 
-    std::ofstream avg_time_file("src/vi/csv/ctsvi_ad/avg_runtime.txt");
-    avg_time_file << avg_time * 1000 << std::endl; // 保存为毫秒单位
+    write_csv(csv_dir + "q_history.csv", q_history);
+    write_csv_scalar_series(csv_dir + "time_history.csv", time_history);
+    write_csv_scalar_series(csv_dir + "energy_history.csv", energy_history);
+    write_csv_scalar_series(csv_dir + "delta_energy_history.csv", delta_energy_history);
+    write_csv_scalar_series(csv_dir + "energy_T_history.csv", energy_T_history);
+    write_csv_scalar_series(csv_dir + "energy_U_history.csv", energy_U_history);
+    write_csv_3d(csv_dir + "ee_history.csv", ee_history);
+
+    std::ofstream avg_time_file(csv_dir + "avg_runtime.txt");
+    avg_time_file << avg_time * 1000 << std::endl;
     avg_time_file.close();
 
     RCLCPP_INFO(node->get_logger(), "Saved CSVs.");

@@ -17,6 +17,9 @@
 #include <chrono>
 #include <numeric>
 #include <string>
+#include <sstream>
+#include <algorithm>
+#include <regex>
 #include <iomanip>
 
 using namespace pinocchio;
@@ -199,6 +202,38 @@ std::string expand_user(const std::string &path)
     return path;
 }
 
+std::string fmt_double_label(double v)
+{
+    std::ostringstream oss;
+    oss.setf(std::ios::fmtflags(0), std::ios::floatfield);
+    oss<<std::fixed<<std::setprecision(6)<<v;
+    std::string s = oss.str();
+    // trim trailing zeros and possible trailing dot
+    if (s.find('.') != std::string::npos) {
+        while (!s.empty() && s.back() == '0') s.pop_back();
+        if (!s.empty() && s.back() == '.') s.pop_back();
+    }
+    std::replace(s.begin(), s.end(), '.', 'p');
+    return s;
+}
+
+std::pair<double,double> read_lyap_from_config()
+{
+    std::string cfg = "src/vi/config/vi_params.yaml";
+    std::ifstream ifs(cfg);
+    double a = 0.0, b = 0.0;
+    if (!ifs) return {a,b};
+    std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+    std::smatch m;
+    try {
+        std::regex ra("lyap_alpha\\s*:\\s*([0-9.eE+-]+)");
+        std::regex rb("lyap_beta\\s*:\\s*([0-9.eE+-]+)");
+        if (std::regex_search(content, m, ra)) a = std::stod(m[1].str());
+        if (std::regex_search(content, m, rb)) b = std::stod(m[1].str());
+    } catch (...) {}
+    return {a,b};
+}
+
 // ---------- Main ----------
 int main(int argc, char** argv)
 {
@@ -307,11 +342,16 @@ int main(int argc, char** argv)
     double avg_time = !runtimes.empty() ? std::accumulate(runtimes.begin(), runtimes.end(), 0.0) / runtimes.size() : 0.0;
     RCLCPP_INFO(node->get_logger(), "Simulation finished, wall time: %f s, Average step time: %f ms", total_elapsed, avg_time * 1e3);
 
-    // Save CSVs
-    std::string csv_dir = "src/vi/csv/rk4/";
+    // Save CSVs into parameterized folder including lyap params: src/vi/csv/q<q>_dt<dt>_T<T>_a<alpha>_b<beta>/rk4/
+    auto [a_val, b_val] = read_lyap_from_config();
+    std::string params_label = std::string("q") + fmt_double_label(q_init)
+        + std::string("_dt") + fmt_double_label(timestep)
+        + std::string("_T") + fmt_double_label(duration)
+        + std::string("_a") + fmt_double_label(a_val)
+        + std::string("_b") + fmt_double_label(b_val);
+    std::string csv_dir = std::string("src/vi/csv/") + params_label + std::string("/rk4/");
     std::string cmd = "mkdir -p " + csv_dir;
-    int unused = system(cmd.c_str());
-    (void)unused;
+    int unused = system(cmd.c_str()); (void)unused;
 
     write_csv(csv_dir + "q_history.csv", q_history);
     write_csv(csv_dir + "v_history.csv", v_history);

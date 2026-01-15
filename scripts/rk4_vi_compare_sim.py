@@ -4,6 +4,10 @@ import sys
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+try:
+    import yaml
+except Exception:
+    yaml = None
 
 # 绘图统一风格与辅助函数
 FIGSIZE = (10, 5)
@@ -34,9 +38,58 @@ def _init_fig(figsize=None):
     plt.figure(figsize=figsize)
 
 def _save_fig(tag, filename, dpi, show=True):
-    save_dir = os.path.expanduser(f"~/ros2_ws/dynamic_ws/src/vi/fig/{tag}")
+    params_label = build_params_label()
+    save_dir = os.path.expanduser(f"~/ros2_ws/dynamic_ws/src/vi/fig/{params_label}/{tag}")
     os.makedirs(save_dir, exist_ok=True)
-    save_path = os.path.join(save_dir, filename)
+
+    # 读取配置并将关键参数加入文件名
+    config_path = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml')
+    q_init = 'NA'
+    timestep = 'NA'
+    duration = 'NA'
+    lyap_alpha = 'NA'
+    lyap_beta = 'NA'
+    try:
+        if yaml is not None:
+            with open(config_path, 'r') as f:
+                cfg = yaml.safe_load(f)
+            root = cfg.get('/**', {}) if isinstance(cfg, dict) else {}
+            rp = root.get('ros__parameters', {}) if isinstance(root, dict) else {}
+            q_init = rp.get('q_init', q_init)
+            timestep = rp.get('timestep', timestep)
+            duration = rp.get('duration', duration)
+            ets = cfg.get('etsvi_node', {})
+            ets_rp = ets.get('ros__parameters', {}) if isinstance(ets, dict) else {}
+            lyap_alpha = ets_rp.get('lyap_alpha', lyap_alpha)
+            lyap_beta = ets_rp.get('lyap_beta', lyap_beta)
+        else:
+            with open(config_path, 'r') as f:
+                txt = f.read()
+            import re
+            def _find(k):
+                m = re.search(rf"{k}\s*:\s*([0-9.eE+-]+)", txt)
+                return m.group(1) if m else 'NA'
+            q_init = _find('q_init')
+            timestep = _find('timestep')
+            duration = _find('duration')
+            lyap_alpha = _find('lyap_alpha')
+            lyap_beta = _find('lyap_beta')
+    except Exception:
+        pass
+
+    def _format_param(v):
+        try:
+            fv = float(v)
+            if fv.is_integer():
+                return str(int(fv))
+            return str(v).replace('.', 'p').replace(' ', '')
+        except Exception:
+            return str(v).replace('.', 'p').replace(' ', '')
+
+    params_str = f"q{_format_param(q_init)}_dt{_format_param(timestep)}_T{_format_param(duration)}_a{_format_param(lyap_alpha)}_b{_format_param(lyap_beta)}"
+    name, ext = os.path.splitext(filename)
+    new_filename = f"{name}_{params_str}{ext}"
+    save_path = os.path.join(save_dir, new_filename)
     plt.tight_layout()
     plt.savefig(save_path, dpi=dpi)
     print(f"Saved: {save_path}")
@@ -44,6 +97,58 @@ def _save_fig(tag, filename, dpi, show=True):
         plt.show()
     else:
         plt.close()
+
+
+def build_params_label(include_lyap=True):
+    config_path = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/config/vi_params.yaml')
+    q_init = 'NA'
+    timestep = 'NA'
+    duration = 'NA'
+    lyap_alpha = None
+    lyap_beta = None
+    try:
+        if yaml is not None:
+            with open(config_path, 'r') as f:
+                cfg = yaml.safe_load(f)
+            root = cfg.get('/**', {}) if isinstance(cfg, dict) else {}
+            rp = root.get('ros__parameters', {}) if isinstance(root, dict) else {}
+            q_init = rp.get('q_init', q_init)
+            timestep = rp.get('timestep', timestep)
+            duration = rp.get('duration', duration)
+            ets = cfg.get('etsvi_node', {})
+            ets_rp = ets.get('ros__parameters', {}) if isinstance(ets, dict) else {}
+            lyap_alpha = ets_rp.get('lyap_alpha', None)
+            lyap_beta = ets_rp.get('lyap_beta', None)
+        else:
+            with open(config_path, 'r') as f:
+                txt = f.read()
+            import re
+            def _find(k):
+                m = re.search(rf"{k}\s*:\s*([0-9.eE+-]+)", txt)
+                return m.group(1) if m else None
+            q_init = _find('q_init') or q_init
+            timestep = _find('timestep') or timestep
+            duration = _find('duration') or duration
+            lyap_alpha = _find('lyap_alpha')
+            lyap_beta = _find('lyap_beta')
+    except Exception:
+        pass
+
+    def _format_param(v):
+        try:
+            fv = float(v)
+            if fv.is_integer():
+                return str(int(fv))
+            return str(v).replace('.', 'p').replace(' ', '')
+        except Exception:
+            return str(v).replace('.', 'p').replace(' ', '')
+
+    label = f"q{_format_param(q_init)}_dt{_format_param(timestep)}_T{_format_param(duration)}"
+    if include_lyap:
+        a = lyap_alpha if lyap_alpha is not None else 'NA'
+        b = lyap_beta if lyap_beta is not None else 'NA'
+        label += f"_a{_format_param(a)}_b{_format_param(b)}"
+    return label
 
 
 def run_ctsvi():
@@ -154,11 +259,12 @@ def plot_runtime_comparison(tag, dpi_set):
     """绘制ETSVI和RK4的平均运行时间对比图"""
     print("Generating runtime comparison plot...")
     base = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/csv/')
+    params = build_params_label()
 
-    # 定义算法和对应的文件路径
+    # 定义算法和对应的文件路径（位于参数化目录下）
     algorithms = {
-        'etsvi': 'etsvi/avg_runtime.txt',
-        'rk4': 'rk4/avg_runtime.txt'
+        'etsvi': os.path.join(params, 'etsvi', 'avg_runtime.txt'),
+        'rk4': os.path.join(params, 'rk4', 'avg_runtime.txt')
     }
 
     avg_times = []
@@ -212,10 +318,11 @@ def plot_results(tag, dpi_set):
 
     # ---------- 1. 读取数据 ----------
     base = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/csv/')
+    params_base = build_params_label()
 
-    csv_dir_etsvi = os.path.join(base, 'etsvi')
-    csv_dir_rk4   = os.path.join(base, 'rk4')
-    csv_dir_py    = os.path.join(base, 'pybullet')
+    csv_dir_etsvi = os.path.join(base, params_base, 'etsvi')
+    csv_dir_rk4   = os.path.join(base, params_base, 'rk4')
+    csv_dir_py    = os.path.join(base, params_base, 'pybullet')
 
     if not os.path.exists(os.path.join(csv_dir_rk4, 'q_history.csv')):
         print("CSV files not found. Simulation may have failed.")
@@ -320,10 +427,10 @@ def plot_results(tag, dpi_set):
     plot_runtime_comparison(tag, dpi_set)
     
     # 绘制第7关节相平面（关节编号从1开始，脚本内部使用0-based）
-    plot_phase_plane("etsvi_rk4_compare", 300, joint_index=6)
+    # plot_phase_plane("etsvi_rk4_compare", 300, joint_index=6)
 
     # 绘制第7关节庞加莱截面：用关节1过零上升事件触发采样
-    plot_poincare_section("etsvi_rk4_compare", 300, joint_index=6, trigger_joint_index=0, surface='q=0', direction='+')
+    # plot_poincare_section("etsvi_rk4_compare", 300, joint_index=6, trigger_joint_index=0, surface='q=0', direction='+')
 
     return 1
 
@@ -333,9 +440,10 @@ def plot_phase_plane(tag, dpi_set, joint_index=6):
     print(f"Generating phase plane for joint {joint_index+1}...")
     base = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/csv/')
 
-    csv_dir_etsvi = os.path.join(base, 'etsvi')
-    csv_dir_rk4   = os.path.join(base, 'rk4')
-    csv_dir_py    = os.path.join(base, 'pybullet')
+    params = build_params_label()
+    csv_dir_etsvi = os.path.join(base, params, 'etsvi')
+    csv_dir_rk4   = os.path.join(base, params, 'rk4')
+    csv_dir_py    = os.path.join(base, params, 'pybullet')
 
     # --- RK4: load q_history and v_history if available ---
     q_rk4 = None
@@ -578,12 +686,12 @@ def main():
     # if not run_rk4():
     #     return 1
 
-    # # 运行 pybullet 对照仿真（内联执行 pybullet_sim.py）
+    # 运行 pybullet 对照仿真（内联执行 pybullet_sim.py）
     # if not run_pybullet_inline():
     #     print("Warning: pybullet inline run failed or skipped. Proceeding to plotting with available CSVs.")
 
     # 绘制结果
-    if not plot_results("etsvi_rk4_compare", 1000):
+    if not plot_results("vs_r_p", 1000):
         return 1
 
     print("All tasks completed successfully!")

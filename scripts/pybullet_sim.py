@@ -151,8 +151,31 @@ def main():
 
         t += timestep
 
-    # save CSVs
-    csv_dir = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/csv/pybullet/')
+    # save CSVs into parameterized folder: src/vi/csv/q<q>_dt<dt>_T<T>_a.../pybullet/
+    def _format_param(v):
+        try:
+            fv = float(v)
+            if fv.is_integer():
+                return str(int(fv))
+            return str(v).replace('.', 'p').replace(' ', '')
+        except Exception:
+            return str(v).replace('.', 'p').replace(' ', '')
+
+    # include lyapunov params (if present in config)
+    lyap_a = None
+    lyap_b = None
+    try:
+        lyap = cfg.get('etsvi_node', {}).get('ros__parameters', {})
+        lyap_a = lyap.get('lyap_alpha', None)
+        lyap_b = lyap.get('lyap_beta', None)
+    except Exception:
+        pass
+
+    if lyap_a is not None and lyap_b is not None:
+        params_str = f"q{_format_param(q_init)}_dt{_format_param(timestep)}_T{_format_param(duration)}_a{_format_param(lyap_a)}_b{_format_param(lyap_b)}"
+    else:
+        params_str = f"q{_format_param(q_init)}_dt{_format_param(timestep)}_T{_format_param(duration)}"
+    csv_dir = os.path.expanduser(f'~/ros2_ws/dynamic_ws/src/vi/csv/{params_str}/pybullet/')
     os.makedirs(csv_dir, exist_ok=True)
 
     np.savetxt(os.path.join(csv_dir, 'q_history.csv'), np.array(q_history), delimiter=',')
