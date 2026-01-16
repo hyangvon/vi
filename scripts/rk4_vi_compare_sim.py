@@ -683,12 +683,12 @@ def main():
     # if not run_etsvi():
     #     return 1
 
-    # if not run_rk4():
-    #     return 1
+    if not run_rk4():
+        return 1
 
     # 运行 pybullet 对照仿真（内联执行 pybullet_sim.py）
-    # if not run_pybullet_inline():
-    #     print("Warning: pybullet inline run failed or skipped. Proceeding to plotting with available CSVs.")
+    if not run_pybullet_inline():
+        print("Warning: pybullet inline run failed or skipped. Proceeding to plotting with available CSVs.")
 
     # 绘制结果
     if not plot_results("vs_r_p", 1000):

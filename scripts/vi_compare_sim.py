@@ -644,14 +644,14 @@ def plot_results(tag, dpi_set):
 def main():
     """主函数"""
     # 运行仿真
-    # if not run_ctsvi():
-    #     return 1
+    if not run_ctsvi():
+        return 1
 
-    # if not run_atsvi():
-    #     return 1
+    if not run_atsvi():
+        return 1
 
-    # if not run_etsvi():
-    #     return 1
+    if not run_etsvi():
+        return 1
 
     # 绘制结果
     if not plot_results("vs_c_a", 1000):
