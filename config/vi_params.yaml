@@ -1,6 +1,6 @@
 /**:  # 通配符，表示所有节点都能看到下面的参数
   ros__parameters:
-    q_init: 0.10
+    q_init: 0.40
     timestep: 0.01
     duration: 40.0
     urdf_path: "~/ros2_ws/dynamic_ws/src/vi/urdf/7_pendulum.urdf"
