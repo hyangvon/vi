@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import subprocess
 import sys
+import argparse
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -679,16 +680,21 @@ def plot_poincare_section(tag, dpi_set, joint_index=6, trigger_joint_index=0, su
 
 def main():
     """主函数"""
-    # 运行仿真
-    # if not run_etsvi():
-    #     return 1
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--skip-sim', action='store_true', help='Skip running simulations and only plot using existing CSVs')
+    args = parser.parse_args()
 
-    if not run_rk4():
-        return 1
+    # 运行仿真（除非用户要求跳过）
+    if not args.skip_sim:
+        # if not run_etsvi():
+        #     return 1
 
-    # 运行 pybullet 对照仿真（内联执行 pybullet_sim.py）
-    if not run_pybullet_inline():
-        print("Warning: pybullet inline run failed or skipped. Proceeding to plotting with available CSVs.")
+        if not run_rk4():
+            return 1
+
+        # 运行 pybullet 对照仿真（内联执行 pybullet_sim.py）
+        if not run_pybullet_inline():
+            print("Warning: pybullet inline run failed or skipped. Proceeding to plotting with available CSVs.")
 
     # 绘制结果
     if not plot_results("vs_r_p", 1000):

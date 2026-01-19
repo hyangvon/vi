@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import subprocess
 import sys
+import argparse
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -297,62 +298,179 @@ def plot_runtime_comparison(tag, dpi_set):
         print(f"{label}: {time_val:.3f}ms")
 
 
-def plot_runtime_vs_energy(tag, dpi_set):
-    """以平均运行时间为横轴，平均能量误差为纵轴，绘制三种方法对比图并保存。"""
+def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
+    """
+    绘制平均运行时间 (x) vs 平均能量误差 (y) 的对比图。
+
+    参数:
+    - tag, dpi_set: 同前
+    - csv_paths: 可选。若为 None，使用脚本内默认的单组路径（旧行为）。
+      若提供，应为一个有序/可迭代的字典或列表，表示不同参数点的集合：
+        csv_paths = {
+          'param_label1': {
+             'CTSVI': {'runtime': '/full/path/avg_runtime.txt', 'energy': '/full/path/delta_energy_history.csv'},
+             'ATSVI': {...},
+             'C-ATSVI': {...}
+          },
+          'param_label2': { ... }
+        }
+      函数会按 csv_paths 的顺序为每种算法绘制连线，x 轴为 runtime，y 轴为 mean(|delta_energy|)。
+    """
+
     print("Generating runtime vs energy plot...")
     base = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/csv/')
-    params_base = build_params_label()
-    params_etsvi = build_params_label()
 
-    methods = {
-        'CTSVI': {
-            'runtime': os.path.join(base, params_base, 'ctsvi_ad', 'avg_runtime.txt'),
-            'energy': os.path.join(base, params_base, 'ctsvi_ad', 'delta_energy_history.csv')
+    params_base = [
+        'q0p1_dt0p01_T40_a0p4_b0p04', 
+        'q0p15_dt0p01_T40_a0p4_b0p04', 
+        'q0p2_dt0p01_T40_a0p4_b0p04', 
+        'q0p25_dt0p01_T40_a0p4_b0p04', 
+        'q0p31_dt0p01_T40_a0p4_b0p04', 
+        'q0p35_dt0p01_T40_a0p4_b0p04', 
+        'q0p4_dt0p01_T40_a0p4_b0p04'
+    ]
+
+    csv_paths = {
+        'param_label1': {
+            'CTSVI': {'runtime': os.path.join(base, params_base[0], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[0], 'ctsvi_ad', 'delta_energy_history.csv')},
+            'ATSVI': {'runtime': os.path.join(base, params_base[0], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[0], 'atsvi_ad', 'delta_energy_history.csv')},
+            'C-ATSVI': {'runtime': os.path.join(base, params_base[0], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[0], 'etsvi', 'delta_energy_history.csv')}
         },
-        'ATSVI': {
-            'runtime': os.path.join(base, params_base, 'atsvi_ad', 'avg_runtime.txt'),
-            'energy': os.path.join(base, params_base, 'atsvi_ad', 'delta_energy_history.csv')
+        'param_label2': {
+            'CTSVI': {'runtime': os.path.join(base, params_base[1], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[1], 'ctsvi_ad', 'delta_energy_history.csv')},
+            'ATSVI': {'runtime': os.path.join(base, params_base[1], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[1], 'atsvi_ad', 'delta_energy_history.csv')},
+            'C-ATSVI': {'runtime': os.path.join(base, params_base[1], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[1], 'etsvi', 'delta_energy_history.csv')}
         },
-        'C-ATSVI': {
-            'runtime': os.path.join(base, params_etsvi, 'etsvi', 'avg_runtime.txt'),
-            'energy': os.path.join(base, params_etsvi, 'etsvi', 'delta_energy_history.csv')
+        'param_label3': {
+            'CTSVI': {'runtime': os.path.join(base, params_base[2], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[2], 'ctsvi_ad', 'delta_energy_history.csv')},
+            'ATSVI': {'runtime': os.path.join(base, params_base[2], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[2], 'atsvi_ad', 'delta_energy_history.csv')},
+            'C-ATSVI': {'runtime': os.path.join(base, params_base[2], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[2], 'etsvi', 'delta_energy_history.csv')}
+        },
+        'param_label4': {
+            'CTSVI': {'runtime': os.path.join(base, params_base[3], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[3], 'ctsvi_ad', 'delta_energy_history.csv')},
+            'ATSVI': {'runtime': os.path.join(base, params_base[3], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[3], 'atsvi_ad', 'delta_energy_history.csv')},
+            'C-ATSVI': {'runtime': os.path.join(base, params_base[3], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[3], 'etsvi', 'delta_energy_history.csv')}
+        },
+        'param_label5': {
+            'CTSVI': {'runtime': os.path.join(base, params_base[4], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[4], 'ctsvi_ad', 'delta_energy_history.csv')},
+            'ATSVI': {'runtime': os.path.join(base, params_base[4], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[4], 'atsvi_ad', 'delta_energy_history.csv')},
+            'C-ATSVI': {'runtime': os.path.join(base, params_base[4], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[4], 'etsvi', 'delta_energy_history.csv')}
+        },
+        'param_label6': {
+            'CTSVI': {'runtime': os.path.join(base, params_base[5], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[5], 'ctsvi_ad', 'delta_energy_history.csv')},
+            'ATSVI': {'runtime': os.path.join(base, params_base[5], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[5], 'atsvi_ad', 'delta_energy_history.csv')},
+            'C-ATSVI': {'runtime': os.path.join(base, params_base[5], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[5], 'etsvi', 'delta_energy_history.csv')}
+        },
+        'param_label7': {
+            'CTSVI': {'runtime': os.path.join(base, params_base[6], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[6], 'ctsvi_ad', 'delta_energy_history.csv')},
+            'ATSVI': {'runtime': os.path.join(base, params_base[6], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[6], 'atsvi_ad', 'delta_energy_history.csv')},
+            'C-ATSVI': {'runtime': os.path.join(base, params_base[6], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[6], 'etsvi', 'delta_energy_history.csv')}
         }
     }
 
-    xs = []
-    ys = []
-    labels = []
-    for name, paths in methods.items():
-        # read runtime
-        rt = float('nan')
-        if os.path.exists(paths['runtime']):
-            try:
-                with open(paths['runtime'], 'r') as f:
-                    rt = float(f.read().strip())
-            except Exception:
+    # 默认单组行为（保持向后兼容）
+    if csv_paths is None:
+        params_base = build_params_label()
+        methods = {
+            'CTSVI': {
+                'runtime': os.path.join(base, params_base, 'ctsvi_ad', 'avg_runtime.txt'),
+                'energy': os.path.join(base, params_base, 'ctsvi_ad', 'delta_energy_history.csv')
+            },
+            'ATSVI': {
+                'runtime': os.path.join(base, params_base, 'atsvi_ad', 'avg_runtime.txt'),
+                'energy': os.path.join(base, params_base, 'atsvi_ad', 'delta_energy_history.csv')
+            },
+            'C-ATSVI': {
+                'runtime': os.path.join(base, params_base, 'etsvi', 'avg_runtime.txt'),
+                'energy': os.path.join(base, params_base, 'etsvi', 'delta_energy_history.csv')
+            }
+        }
+        # compute single-point results
+        xs = []
+        ys = []
+        labels = []
+        for name, paths in methods.items():
+            rt = float('nan')
+            if os.path.exists(paths['runtime']):
+                try:
+                    with open(paths['runtime'], 'r') as f:
+                        rt = float(f.read().strip())
+                except Exception:
+                    rt = float('nan')
+            mae = float('nan')
+            if os.path.exists(paths['energy']):
+                try:
+                    arr = np.loadtxt(paths['energy'], delimiter=',')
+                    arr = np.atleast_1d(arr).astype(float)
+                    mae = float(np.mean(np.abs(arr)))
+                except Exception:
+                    mae = float('nan')
+            xs.append(rt)
+            ys.append(mae)
+            labels.append(name)
+
+        _init_fig(figsize=(6, 6))
+        cmap = plt.get_cmap('tab10')
+        colors = [cmap(i) for i in range(len(labels))]
+        for x, y, lbl, c in zip(xs, ys, labels, colors):
+            plt.scatter(x, y, label=lbl, color=c, s=120)
+            plt.text(x, y, f' {lbl}', verticalalignment='center', fontsize=11)
+
+    else:
+        # csv_paths provided: 可以是 dict (param_label -> {alg: {runtime,energy}})
+        # or a list of tuples (param_label, mapping)
+        # Normalize to list of (param_label, mapping)
+        items = None
+        if isinstance(csv_paths, dict):
+            items = list(csv_paths.items())
+        elif isinstance(csv_paths, list) or hasattr(csv_paths, '__iter__'):
+            items = list(csv_paths)
+        else:
+            raise ValueError('csv_paths must be dict or iterable of (label,mapping)')
+
+        # collect per-algorithm series
+        algs = []
+        # determine algorithm names from first mapping
+        if items:
+            first_map = items[0][1]
+            algs = list(first_map.keys())
+
+        series = {alg: {'rts': [], 'maes': [], 'labels': []} for alg in algs}
+        for param_label, mapping in items:
+            for alg in algs:
                 rt = float('nan')
-
-        # read energy error mean abs
-        mae = float('nan')
-        if os.path.exists(paths['energy']):
-            try:
-                arr = np.loadtxt(paths['energy'], delimiter=',')
-                arr = np.atleast_1d(arr).astype(float)
-                mae = float(np.mean(np.abs(arr)))
-            except Exception:
                 mae = float('nan')
+                paths = mapping.get(alg, {})
+                if 'runtime' in paths and os.path.exists(paths['runtime']):
+                    try:
+                        with open(paths['runtime'], 'r') as f:
+                            rt = float(f.read().strip())
+                    except Exception:
+                        rt = float('nan')
+                if 'energy' in paths and os.path.exists(paths['energy']):
+                    try:
+                        arr = np.loadtxt(paths['energy'], delimiter=',')
+                        arr = np.atleast_1d(arr).astype(float)
+                        mae = float(np.mean(np.abs(arr)))
+                    except Exception:
+                        mae = float('nan')
+                series[alg]['rts'].append(rt)
+                series[alg]['maes'].append(mae)
+                series[alg]['labels'].append(param_label)
 
-        xs.append(rt)
-        ys.append(mae)
-        labels.append(name)
-
-    # 绘图
-    _init_fig(figsize=(6, 6))
-    cmap = plt.get_cmap('tab10')
-    colors = [cmap(i) for i in range(len(labels))]
-    for x, y, lbl, c in zip(xs, ys, labels, colors):
-        plt.scatter(x, y, label=lbl, color=c, s=120)
-        plt.text(x, y, f' {lbl}', verticalalignment='center', fontsize=11)
+        # 绘制折线，每个算法一条线
+        _init_fig(figsize=(8, 6))
+        cmap = plt.get_cmap('tab10')
+        colors = {alg: cmap(i) for i, alg in enumerate(series.keys())}
+        for i, (alg, data) in enumerate(series.items()):
+            rts = np.array(data['rts'])
+            maes = np.array(data['maes'])
+            lbls = data['labels']
+            plt.plot(rts, maes, marker='o', linestyle='-', label=alg, color=colors.get(alg))
+            # plt.plot(rts, maes, marker='o', linestyle='-', color=colors.get(alg))
+            # 标注每个点的参数标签（可选，简短显示）
+            # for x, y, pl in zip(rts, maes, lbls):
+            #     plt.text(x, y, f' {pl}', fontsize=8, verticalalignment='center')
 
     plt.xlabel('Average Runtime (ms)')
     plt.ylabel('Mean Absolute Energy Error (J)')
@@ -643,15 +761,20 @@ def plot_results(tag, dpi_set):
 
 def main():
     """主函数"""
-    # 运行仿真
-    if not run_ctsvi():
-        return 1
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--skip-sim', action='store_true', help='Skip running simulations and only plot using existing CSVs')
+    args = parser.parse_args()
 
-    if not run_atsvi():
-        return 1
+    # 运行仿真（除非用户要求跳过）
+    if not args.skip_sim:
+        if not run_ctsvi():
+            return 1
 
-    if not run_etsvi():
-        return 1
+        if not run_atsvi():
+            return 1
+
+        if not run_etsvi():
+            return 1
 
     # 绘制结果
     if not plot_results("vs_c_a", 1000):
