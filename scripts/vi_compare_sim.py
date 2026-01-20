@@ -331,16 +331,16 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
     ]
 
     csv_paths = {
-        'param_label1': {
-            'CTSVI': {'runtime': os.path.join(base, params_base[0], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[0], 'ctsvi_ad', 'delta_energy_history.csv')},
-            'ATSVI': {'runtime': os.path.join(base, params_base[0], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[0], 'atsvi_ad', 'delta_energy_history.csv')},
-            'C-ATSVI': {'runtime': os.path.join(base, params_base[0], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[0], 'etsvi', 'delta_energy_history.csv')}
-        },
-        'param_label2': {
-            'CTSVI': {'runtime': os.path.join(base, params_base[1], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[1], 'ctsvi_ad', 'delta_energy_history.csv')},
-            'ATSVI': {'runtime': os.path.join(base, params_base[1], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[1], 'atsvi_ad', 'delta_energy_history.csv')},
-            'C-ATSVI': {'runtime': os.path.join(base, params_base[1], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[1], 'etsvi', 'delta_energy_history.csv')}
-        },
+        # 'param_label1': {
+        #     'CTSVI': {'runtime': os.path.join(base, params_base[0], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[0], 'ctsvi_ad', 'delta_energy_history.csv')},
+        #     'ATSVI': {'runtime': os.path.join(base, params_base[0], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[0], 'atsvi_ad', 'delta_energy_history.csv')},
+        #     'C-ATSVI': {'runtime': os.path.join(base, params_base[0], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[0], 'etsvi', 'delta_energy_history.csv')}
+        # },
+        # 'param_label2': {
+        #     'CTSVI': {'runtime': os.path.join(base, params_base[1], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[1], 'ctsvi_ad', 'delta_energy_history.csv')},
+        #     'ATSVI': {'runtime': os.path.join(base, params_base[1], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[1], 'atsvi_ad', 'delta_energy_history.csv')},
+        #     'C-ATSVI': {'runtime': os.path.join(base, params_base[1], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[1], 'etsvi', 'delta_energy_history.csv')}
+        # },
         'param_label3': {
             'CTSVI': {'runtime': os.path.join(base, params_base[2], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[2], 'ctsvi_ad', 'delta_energy_history.csv')},
             'ATSVI': {'runtime': os.path.join(base, params_base[2], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[2], 'atsvi_ad', 'delta_energy_history.csv')},
@@ -412,9 +412,15 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
         _init_fig(figsize=(6, 6))
         cmap = plt.get_cmap('tab10')
         colors = [cmap(i) for i in range(len(labels))]
-        for x, y, lbl, c in zip(xs, ys, labels, colors):
-            plt.scatter(x, y, label=lbl, color=c, s=120)
+        # 不同算法使用不同 marker
+        markers = ['o', 's', '^', 'D', 'v']
+        for i, (x, y, lbl, c) in enumerate(zip(xs, ys, labels, colors)):
+            m = markers[i % len(markers)]
+            plt.scatter(x, y, label=lbl, color=c, s=120, marker=m)
             plt.text(x, y, f' {lbl}', verticalalignment='center', fontsize=11)
+        plt.legend()
+        plt.xlim(0, 65)
+        plt.ylim(0, 0.01)
 
     else:
         # csv_paths provided: 可以是 dict (param_label -> {alg: {runtime,energy}})
@@ -462,15 +468,20 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
         _init_fig(figsize=(8, 6))
         cmap = plt.get_cmap('tab10')
         colors = {alg: cmap(i) for i, alg in enumerate(series.keys())}
+        # 为不同算法分配不同 marker
+        marker_list = ['o', '^', 'D', 'v', 'P', '*', 's']
         for i, (alg, data) in enumerate(series.items()):
             rts = np.array(data['rts'])
             maes = np.array(data['maes'])
             lbls = data['labels']
-            plt.plot(rts, maes, marker='o', linestyle='-', label=alg, color=colors.get(alg))
-            # plt.plot(rts, maes, marker='o', linestyle='-', color=colors.get(alg))
+            m = marker_list[i % len(marker_list)]
+            plt.plot(rts, maes, marker=m, linestyle='-', label=alg, color=colors.get(alg))
             # 标注每个点的参数标签（可选，简短显示）
             # for x, y, pl in zip(rts, maes, lbls):
             #     plt.text(x, y, f' {pl}', fontsize=8, verticalalignment='center')
+        plt.legend()
+        plt.xlim(20, 66)
+        plt.ylim(-0.0005, 0.011)
 
     plt.xlabel('Average Runtime (ms)')
     plt.ylabel('Mean Absolute Energy Error (J)')
