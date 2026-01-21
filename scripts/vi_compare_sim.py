@@ -301,20 +301,7 @@ def plot_runtime_comparison(tag, dpi_set):
 def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
     """
     绘制平均运行时间 (x) vs 平均能量误差 (y) 的对比图。
-
-    参数:
-    - tag, dpi_set: 同前
-    - csv_paths: 可选。若为 None，使用脚本内默认的单组路径（旧行为）。
-      若提供，应为一个有序/可迭代的字典或列表，表示不同参数点的集合：
-        csv_paths = {
-          'param_label1': {
-             'CTSVI': {'runtime': '/full/path/avg_runtime.txt', 'energy': '/full/path/delta_energy_history.csv'},
-             'ATSVI': {...},
-             'C-ATSVI': {...}
-          },
-          'param_label2': { ... }
-        }
-      函数会按 csv_paths 的顺序为每种算法绘制连线，x 轴为 runtime，y 轴为 mean(|delta_energy|)。
+    函数会按 csv_paths 的顺序为每种算法绘制连线，x 轴为 runtime，y 轴为 mean(|delta_energy|)。
     """
 
     print("Generating runtime vs energy plot...")
@@ -511,8 +498,8 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
             rts_q04 = rts[np.array(mask_q04, dtype=bool)]
             maes_q04 = maes[np.array(mask_q04, dtype=bool)]
 
-            print("rts_q02.size", rts_q02.size)
-            print("rts_q04.size", rts_q04.size)
+            # print("rts_q02.size", rts_q02.size)
+            # print("rts_q04.size", rts_q04.size)
 
             if rts_q02.size:
                 plt.plot(rts_q02, maes_q02, marker=m, linestyle='-', label=f'{alg} q0.2', color=colors.get(alg))
@@ -531,6 +518,24 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
     plt.ylabel('Mean Absolute Energy Error (J)')
     plt.title('Runtime vs Energy Error')
     plt.grid(True, alpha=0.3)
+
+    # 在图中添加三条平行注释箭头，指向左下角区域，表示越靠近左下角越好
+    try:
+        target_x, target_y = 0.5, 0.4  # 目标点（axes fraction）
+        # 三条箭头的起始文本位置（在图上方略有垂直间隔）
+        text_positions = [(0.55, 0.52), (0.6, 0.48), (0.65, 0.44)]
+        arrow_props = dict(arrowstyle='->', color='black', lw=1.2)
+        for i, tp in enumerate(text_positions):
+            # 每条箭头指向目标点并略微错开目标 y 以产生“簇”效果
+            plt.annotate('', xy=(target_x + i*0.05, target_y - i*0.04), xycoords='axes fraction',
+                         xytext=tp, textcoords='axes fraction', arrowprops=arrow_props)
+
+        # 旁注文字（仅一处描述）
+        plt.text(0.6, 0.48, 'Better',
+                 transform=plt.gca().transAxes, fontsize=11,
+                 bbox=dict(boxstyle='round,pad=0.3', fc='white', ec='none', alpha=0.9))
+    except Exception:
+        pass
 
     filename = f"runtime_vs_energy_{tag}.png"
     # _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
