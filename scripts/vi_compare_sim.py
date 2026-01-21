@@ -321,52 +321,36 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
     base = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/csv/')
 
     params_base = [
-        'q0p1_dt0p01_T40_a0p4_b0p04', 
-        'q0p15_dt0p01_T40_a0p4_b0p04', 
         'q0p2_dt0p01_T40_a0p4_b0p04', 
-        'q0p25_dt0p01_T40_a0p4_b0p04', 
-        'q0p31_dt0p01_T40_a0p4_b0p04', 
-        'q0p35_dt0p01_T40_a0p4_b0p04', 
-        'q0p4_dt0p01_T40_a0p4_b0p04'
+        'q0p2_dt0p0075_T40_a0p4_b0p04', 
+        'q0p2_dt0p005_T40_a0p4_b0p04', 
+        # 'q0p2_dt0p0025_T40_a0p4_b0p04', 
+        # 'q0p2_dt0p001_T40_a0p4_b0p04', 
+        
+        'q0p4_dt0p01_T40_a0p4_b0p04', 
+        'q0p4_dt0p0075_T40_a0p4_b0p04', 
+        'q0p4_dt0p005_T40_a0p4_b0p04',
+        # 'q0p4_dt0p0025_T40_a0p4_b0p04', 
+        # 'q0p4_dt0p001_T40_a0p4_b0p04', 
     ]
 
-    csv_paths = {
-        # 'param_label1': {
-        #     'CTSVI': {'runtime': os.path.join(base, params_base[0], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[0], 'ctsvi_ad', 'delta_energy_history.csv')},
-        #     'ATSVI': {'runtime': os.path.join(base, params_base[0], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[0], 'atsvi_ad', 'delta_energy_history.csv')},
-        #     'C-ATSVI': {'runtime': os.path.join(base, params_base[0], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[0], 'etsvi', 'delta_energy_history.csv')}
-        # },
-        # 'param_label2': {
-        #     'CTSVI': {'runtime': os.path.join(base, params_base[1], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[1], 'ctsvi_ad', 'delta_energy_history.csv')},
-        #     'ATSVI': {'runtime': os.path.join(base, params_base[1], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[1], 'atsvi_ad', 'delta_energy_history.csv')},
-        #     'C-ATSVI': {'runtime': os.path.join(base, params_base[1], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[1], 'etsvi', 'delta_energy_history.csv')}
-        # },
-        'param_label3': {
-            'CTSVI': {'runtime': os.path.join(base, params_base[2], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[2], 'ctsvi_ad', 'delta_energy_history.csv')},
-            'ATSVI': {'runtime': os.path.join(base, params_base[2], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[2], 'atsvi_ad', 'delta_energy_history.csv')},
-            'C-ATSVI': {'runtime': os.path.join(base, params_base[2], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[2], 'etsvi', 'delta_energy_history.csv')}
-        },
-        'param_label4': {
-            'CTSVI': {'runtime': os.path.join(base, params_base[3], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[3], 'ctsvi_ad', 'delta_energy_history.csv')},
-            'ATSVI': {'runtime': os.path.join(base, params_base[3], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[3], 'atsvi_ad', 'delta_energy_history.csv')},
-            'C-ATSVI': {'runtime': os.path.join(base, params_base[3], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[3], 'etsvi', 'delta_energy_history.csv')}
-        },
-        'param_label5': {
-            'CTSVI': {'runtime': os.path.join(base, params_base[4], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[4], 'ctsvi_ad', 'delta_energy_history.csv')},
-            'ATSVI': {'runtime': os.path.join(base, params_base[4], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[4], 'atsvi_ad', 'delta_energy_history.csv')},
-            'C-ATSVI': {'runtime': os.path.join(base, params_base[4], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[4], 'etsvi', 'delta_energy_history.csv')}
-        },
-        'param_label6': {
-            'CTSVI': {'runtime': os.path.join(base, params_base[5], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[5], 'ctsvi_ad', 'delta_energy_history.csv')},
-            'ATSVI': {'runtime': os.path.join(base, params_base[5], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[5], 'atsvi_ad', 'delta_energy_history.csv')},
-            'C-ATSVI': {'runtime': os.path.join(base, params_base[5], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[5], 'etsvi', 'delta_energy_history.csv')}
-        },
-        'param_label7': {
-            'CTSVI': {'runtime': os.path.join(base, params_base[6], 'ctsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[6], 'ctsvi_ad', 'delta_energy_history.csv')},
-            'ATSVI': {'runtime': os.path.join(base, params_base[6], 'atsvi_ad', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[6], 'atsvi_ad', 'delta_energy_history.csv')},
-            'C-ATSVI': {'runtime': os.path.join(base, params_base[6], 'etsvi', 'avg_runtime.txt'), 'energy': os.path.join(base, params_base[6], 'etsvi', 'delta_energy_history.csv')}
+    # 自动根据 params_base 列表生成 csv_paths 映射，键为参数文件夹名（例如 q0p2_dt...）
+    csv_paths = {}
+    for p in params_base:
+        csv_paths[p] = {
+            'CTSVI': {
+                'runtime': os.path.join(base, p, 'ctsvi_ad', 'avg_runtime.txt'),
+                'energy': os.path.join(base, p, 'ctsvi_ad', 'delta_energy_history.csv')
+            },
+            'ATSVI': {
+                'runtime': os.path.join(base, p, 'atsvi_ad', 'avg_runtime.txt'),
+                'energy': os.path.join(base, p, 'atsvi_ad', 'delta_energy_history.csv')
+            },
+            'C-ATSVI': {
+                'runtime': os.path.join(base, p, 'etsvi', 'avg_runtime.txt'),
+                'energy': os.path.join(base, p, 'etsvi', 'delta_energy_history.csv')
+            }
         }
-    }
 
     # 默认单组行为（保持向后兼容）
     if csv_paths is None:
@@ -418,7 +402,10 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
             m = markers[i % len(markers)]
             plt.scatter(x, y, label=lbl, color=c, s=120, marker=m)
             plt.text(x, y, f' {lbl}', verticalalignment='center', fontsize=11)
-        plt.legend()
+        # 仅当存在带标签的 artist 时显示图例，避免警告
+        handles, leg_labels = plt.gca().get_legend_handles_labels()
+        if leg_labels:
+            plt.legend()
         plt.xlim(0, 65)
         plt.ylim(0, 0.01)
 
@@ -464,7 +451,7 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
                 series[alg]['maes'].append(mae)
                 series[alg]['labels'].append(param_label)
 
-        # 绘制折线，每个算法一条线
+        # 绘制折线：每个算法分别为 q0p2 和 q0p4 两组绘制一条线（不同线型）
         _init_fig(figsize=(8, 6))
         cmap = plt.get_cmap('tab10')
         colors = {alg: cmap(i) for i, alg in enumerate(series.keys())}
@@ -475,13 +462,29 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
             maes = np.array(data['maes'])
             lbls = data['labels']
             m = marker_list[i % len(marker_list)]
-            plt.plot(rts, maes, marker=m, linestyle='-', label=alg, color=colors.get(alg))
-            # 标注每个点的参数标签（可选，简短显示）
-            # for x, y, pl in zip(rts, maes, lbls):
-            #     plt.text(x, y, f' {pl}', fontsize=8, verticalalignment='center')
-        plt.legend()
-        plt.xlim(20, 66)
-        plt.ylim(-0.0005, 0.011)
+            # 按 q_init 分组 (q0p2 / q0p4)
+            mask_q02 = [str(lbl).startswith('q0p2') for lbl in lbls]
+            mask_q04 = [str(lbl).startswith('q0p4') for lbl in lbls]
+            # 提取子序列
+            rts_q02 = rts[np.array(mask_q02, dtype=bool)]
+            maes_q02 = maes[np.array(mask_q02, dtype=bool)]
+            rts_q04 = rts[np.array(mask_q04, dtype=bool)]
+            maes_q04 = maes[np.array(mask_q04, dtype=bool)]
+
+            print("rts_q02.size", rts_q02.size)
+            print("rts_q04.size", rts_q04.size)
+
+            if rts_q02.size:
+                plt.plot(rts_q02, maes_q02, marker=m, linestyle='-', label=f'{alg} q0.2', color=colors.get(alg))
+            if rts_q04.size:
+                plt.plot(rts_q04, maes_q04, marker=m, linestyle='--', label=f'{alg} q0.4', color=colors.get(alg))
+
+        # 仅当存在带标签的 artist 时显示图例，避免警告
+        handles, leg_labels = plt.gca().get_legend_handles_labels()
+        if leg_labels:
+            plt.legend()
+        plt.xlim(0, 65)
+        plt.ylim(-0.002, 0.01)
 
     plt.xlabel('Average Runtime (ms)')
     plt.ylabel('Mean Absolute Energy Error (J)')
@@ -489,7 +492,14 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
     plt.grid(True, alpha=0.3)
 
     filename = f"runtime_vs_energy_{tag}.png"
-    _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
+    # _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
+
+    save_dir = os.path.expanduser(f"~/ros2_ws/dynamic_ws/src/vi/fig/vs")
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, filename)
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=dpi_set)
+    print(f"Saved: {save_path}")
 
 
 def compute_and_save_energy_errors(tag):
