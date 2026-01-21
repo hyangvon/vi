@@ -381,6 +381,7 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
                         rt = float(f.read().strip())
                 except Exception:
                     rt = float('nan')
+            # 读取 energy
             mae = float('nan')
             if os.path.exists(paths['energy']):
                 try:
@@ -389,7 +390,28 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
                     mae = float(np.mean(np.abs(arr)))
                 except Exception:
                     mae = float('nan')
-            xs.append(rt)
+            # 读取 h_history 以计算总运行时间 = avg_runtime * (n-1)
+            total_rt = rt
+            try:
+                # 首先尝试本算法目录下的 h_history.csv
+                h_path = os.path.join(os.path.dirname(paths['runtime']), 'h_history.csv')
+                if not os.path.exists(h_path):
+                    # 如果是 CTSVI，尝试使用同参数下的 ATSVI 的 h_history.csv 作为备用
+                    parent = os.path.dirname(os.path.dirname(paths['runtime']))
+                    alt = os.path.join(parent, 'atsvi_ad', 'h_history.csv')
+                    if os.path.exists(alt):
+                        h_path = alt
+
+                if os.path.exists(h_path):
+                    harr = np.loadtxt(h_path, delimiter=',')
+                    harr = np.atleast_1d(harr)
+                    n_steps = harr.size if harr.ndim == 1 else harr.shape[0]
+                    if not np.isnan(rt) and n_steps > 1:
+                        total_rt = float(rt) * float(n_steps - 1)
+            except Exception:
+                total_rt = rt
+
+            xs.append(total_rt)
             ys.append(mae)
             labels.append(name)
 
@@ -419,7 +441,7 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
         elif isinstance(csv_paths, list) or hasattr(csv_paths, '__iter__'):
             items = list(csv_paths)
         else:
-            raise ValueError('csv_paths must be dict or iterable of (label,mapping)')
+            plt.xlabel('Total Runtime (ms)')
 
         # collect per-algorithm series
         algs = []
@@ -440,6 +462,22 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
                             rt = float(f.read().strip())
                     except Exception:
                         rt = float('nan')
+                # 将 avg runtime 转为 total runtime: avg * (n_steps - 1) if h_history exists
+                try:
+                    h_path = os.path.join(os.path.dirname(paths.get('runtime', '')) , 'h_history.csv')
+                    if not os.path.exists(h_path):
+                        parent = os.path.dirname(os.path.dirname(paths.get('runtime', '') or ''))
+                        alt = os.path.join(parent, 'atsvi_ad', 'h_history.csv')
+                        if os.path.exists(alt):
+                            h_path = alt
+                    if os.path.exists(h_path):
+                        harr = np.loadtxt(h_path, delimiter=',')
+                        harr = np.atleast_1d(harr)
+                        n_steps = harr.size if harr.ndim == 1 else harr.shape[0]
+                        if not np.isnan(rt) and n_steps > 1:
+                            rt = float(rt) * float(n_steps - 1)
+                except Exception:
+                    pass
                 if 'energy' in paths and os.path.exists(paths['energy']):
                     try:
                         arr = np.loadtxt(paths['energy'], delimiter=',')
@@ -457,11 +495,13 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
         colors = {alg: cmap(i) for i, alg in enumerate(series.keys())}
         # 为不同算法分配不同 marker
         marker_list = ['o', '^', 'D', 'v', 'P', '*', 's']
+        marker_list_2 = ['D', 'v', 'P', '*', 's', 'o', '^']
         for i, (alg, data) in enumerate(series.items()):
             rts = np.array(data['rts'])
             maes = np.array(data['maes'])
             lbls = data['labels']
             m = marker_list[i % len(marker_list)]
+            m2 = marker_list_2[i % len(marker_list_2)]
             # 按 q_init 分组 (q0p2 / q0p4)
             mask_q02 = [str(lbl).startswith('q0p2') for lbl in lbls]
             mask_q04 = [str(lbl).startswith('q0p4') for lbl in lbls]
@@ -477,16 +517,17 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
             if rts_q02.size:
                 plt.plot(rts_q02, maes_q02, marker=m, linestyle='-', label=f'{alg} q0.2', color=colors.get(alg))
             if rts_q04.size:
-                plt.plot(rts_q04, maes_q04, marker=m, linestyle='--', label=f'{alg} q0.4', color=colors.get(alg))
+                plt.plot(rts_q04, maes_q04, marker=m2, linestyle='--', label=f'{alg} q0.4', color=colors.get(alg))
 
         # 仅当存在带标签的 artist 时显示图例，避免警告
         handles, leg_labels = plt.gca().get_legend_handles_labels()
         if leg_labels:
             plt.legend()
-        plt.xlim(0, 65)
-        plt.ylim(-0.002, 0.01)
+        # plt.xlim(0, 65)
+        # plt.ylim(-0.002, 0.01)
 
-    plt.xlabel('Average Runtime (ms)')
+    # plt.xlabel('Average Runtime (ms)')
+    plt.xlabel('Total Runtime (ms)')
     plt.ylabel('Mean Absolute Energy Error (J)')
     plt.title('Runtime vs Energy Error')
     plt.grid(True, alpha=0.3)
