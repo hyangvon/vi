@@ -24,6 +24,7 @@ install(PROGRAMS
         scripts/plot_7dof_pendulum.py
         scripts/vi_compare_sim.py
         scripts/rk4_vi_compare_sim.py
+        scripts/etsvi_sweep_heatmap.py
         DESTINATION lib/${PROJECT_NAME}
 )
 

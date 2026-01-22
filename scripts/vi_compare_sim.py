@@ -521,7 +521,7 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
 
     # 在图中添加三条平行注释箭头，指向左下角区域，表示越靠近左下角越好
     try:
-        target_x, target_y = 0.5, 0.4  # 目标点（axes fraction）
+        target_x, target_y = 0.4, 0.4  # 目标点（axes fraction）
         # 三条箭头的起始文本位置（在图上方略有垂直间隔）
         text_positions = [(0.55, 0.52), (0.6, 0.48), (0.65, 0.44)]
         arrow_props = dict(arrowstyle='->', color='black', lw=1.2)
@@ -531,7 +531,7 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
                          xytext=tp, textcoords='axes fraction', arrowprops=arrow_props)
 
         # 旁注文字（仅一处描述）
-        plt.text(0.6, 0.48, 'Better',
+        plt.text(0.62, 0.50, 'Direction of higher\nenergy accuracy and\nlower runtime',
                  transform=plt.gca().transAxes, fontsize=11,
                  bbox=dict(boxstyle='round,pad=0.3', fc='white', ec='none', alpha=0.9))
     except Exception:
@@ -808,6 +808,29 @@ def plot_results(tag, dpi_set):
     filename = f"tcp_{tag}.png"
     _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
 
+    # ---------- TCP Z vs Zdot 相平面（仅 ETSVI） ----------
+    try:
+        z = tcp_etsvi[:, 2]
+        # 使用时间差分求速度（与时间数组对齐）
+        # 使用 np.gradient 可保持与原数组相同长度
+        zdot = np.gradient(z, time_etsvi)
+
+        _init_fig(figsize=(6, 6))
+        plt.plot(z, zdot, color=c_etsvi, linestyle='-', linewidth=1.5)
+        plt.scatter(z[0], zdot[0], marker='o', color='green', label='start')
+        plt.scatter(z[-1], zdot[-1], marker='X', color='red', label='end')
+        plt.xlabel('TCP Position Z (m)')
+        plt.ylabel('TCP Velocity Z (m/s)')
+        plt.title('ETSVI TCP Phase Plane (z vs zdot)')
+        plt.grid(True, alpha=0.3)
+        handles, leg_labels = plt.gca().get_legend_handles_labels()
+        if leg_labels:
+            plt.legend()
+        filename = f"tcp_phase_etsvi_{tag}.png"
+        _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
+    except Exception as e:
+        print(f"Warning: failed to plot ETSVI TCP phase plane: {e}")
+
     plot_runtime_comparison(tag, dpi_set)
 
     # 计算并保存三种 VI 方法的能量误差平均值
@@ -834,11 +857,11 @@ def main():
 
     # 运行仿真（除非用户要求跳过）
     if not args.skip_sim:
-        if not run_ctsvi():
-            return 1
+        # if not run_ctsvi():
+        #     return 1
 
-        if not run_atsvi():
-            return 1
+        # if not run_atsvi():
+        #     return 1
 
         if not run_etsvi():
             return 1
