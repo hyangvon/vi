@@ -13,6 +13,7 @@ import subprocess
 import datetime
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 try:
     import yaml
 except Exception:
@@ -116,10 +117,36 @@ def read_mean_abs_energy(params_label):
         return np.nan
 
 
-def plot_heatmap(alphas, betas, grid, out_path):
+def plot_heatmap(alphas, betas, grid, out_path, vmin=None, vmax=None, log=False):
     fig, ax = plt.subplots(figsize=(8, 6))
     # grid shape: (len(betas), len(alphas)) where rows=beta, cols=alpha
-    im = ax.imshow(grid, origin='lower', aspect='auto', cmap='viridis')
+    norm = None
+    im_kwargs = dict(origin='lower', aspect='auto', cmap='viridis', interpolation='nearest')
+    if log:
+        # find positive finite entries
+        try:
+            positives = grid[np.isfinite(grid) & (grid > 0)]
+            if positives.size == 0:
+                # fallback to linear if no positive values
+                norm = None
+            else:
+                vmin_eff = vmin if (vmin is not None and vmin > 0) else float(np.min(positives))
+                vmax_eff = vmax if (vmax is not None and vmax > 0) else float(np.max(positives))
+                # ensure vmin_eff < vmax_eff
+                if vmin_eff <= 0 or vmin_eff >= vmax_eff:
+                    vmin_eff = float(np.min(positives))
+                    vmax_eff = float(np.max(positives))
+                norm = LogNorm(vmin=vmin_eff, vmax=vmax_eff)
+                im_kwargs['norm'] = norm
+        except Exception:
+            norm = None
+    else:
+        if vmin is not None:
+            im_kwargs['vmin'] = vmin
+        if vmax is not None:
+            im_kwargs['vmax'] = vmax
+
+    im = ax.imshow(grid, **im_kwargs)
     ax.set_xticks(np.arange(len(alphas)))
     ax.set_yticks(np.arange(len(betas)))
     ax.set_xticklabels([str(a) for a in alphas])
@@ -137,14 +164,21 @@ def plot_heatmap(alphas, betas, grid, out_path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dry-run', action='store_true')
-    parser.add_argument('--q_init', type=float, default=0.2)
+    parser.add_argument('--force', action='store_true', help='Force rerun even if result CSV exists')
+    parser.add_argument('--vmin', type=float, default=None, help='Minimum value for heatmap color scale')
+    parser.add_argument('--vmax', type=float, default=None, help='Maximum value for heatmap color scale')
+    parser.add_argument('--log', action='store_true', help='Use logarithmic color scale')
+    parser.add_argument('--q_init', type=float, default=0.4)
     parser.add_argument('--dt', type=float, default=0.01)
     parser.add_argument('--T', type=float, default=40.0)
     parser.add_argument('--timeout', type=int, default=600)
     args = parser.parse_args()
 
-    alphas = [round(0.1 * i, 2) for i in range(1, 9)]
-    betas = [round(0.01 * i, 3) for i in range(1, 9)]
+    # alphas = [round(0.1 * i, 2) for i in range(1, 9)]
+    # betas = [round(0.01 * i, 3) for i in range(1, 9)]
+
+    alphas = list(np.round(np.linspace(0.05, 1.0, 20), 3))
+    betas = list(np.round(np.linspace(0.005, 0.1, 20), 4))
 
     grid = np.zeros((len(betas), len(alphas))) * np.nan
 
@@ -156,6 +190,16 @@ def main():
             log_file = os.path.join(LOG_DIR, f'etsvi_{label}.log')
             with open(log_file, 'a') as lf:
                 lf.write(f"Experiment: {label}\nParams: {params_file}\n")
+
+            # 如果已有结果文件且未指定 --force，则跳过仿真，直接读取结果
+            result_csv = os.path.join(CSV_BASE, label, 'etsvi', 'delta_energy_history.csv')
+            if not args.force and os.path.exists(result_csv) and os.path.getsize(result_csv) > 0:
+                print(f"Found existing results for {label}, skipping run (use --force to override)")
+                mean_abs = read_mean_abs_energy(label)
+                grid[ib, ia] = mean_abs
+                with open(log_file, 'a') as lf:
+                    lf.write(f"Skipped run (existing {result_csv})\n")
+                continue
 
             if args.dry_run:
                 print(f"[dry-run] {label}")
@@ -178,7 +222,7 @@ def main():
     timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     out_png = os.path.join(OUT_DIR, f'etsvi_heatmap_{timestamp}.png')
     out_csv = os.path.join(OUT_DIR, f'etsvi_heatmap_{timestamp}.csv')
-    plot_heatmap(alphas, betas, grid, out_png)
+    plot_heatmap(alphas, betas, grid, out_png, vmin=args.vmin, vmax=args.vmax, log=args.log)
     # save CSV with betas as rows, alphas as columns
     header = ','.join([str(a) for a in alphas])
     with open(out_csv, 'w') as f:
