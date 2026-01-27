@@ -19,6 +19,33 @@ try:
 except Exception:
     yaml = None
 
+# 绘图统一风格与辅助函数
+FIGSIZE = (6, 6)
+DEFAULT_DPI = 1000
+
+# 字体与样式统一设置
+FONT_FAMILY = 'DejaVu Sans'
+TITLE_FONT_SIZE = 20
+LABEL_FONT_SIZE = 18
+LEGEND_FONT_SIZE = 18
+TICK_FONT_SIZE = 13
+TITLE_FONT_WEIGHT = 'bold'
+
+def _init_fig(figsize=None):
+    if figsize is None:
+        figsize = FIGSIZE
+    # 通过 rcParams 统一字体、标题和图例样式
+    plt.rcParams.update({
+        'font.family': FONT_FAMILY,
+        'axes.titlesize': TITLE_FONT_SIZE,
+        'axes.titleweight': TITLE_FONT_WEIGHT,
+        'axes.labelsize': LABEL_FONT_SIZE,
+        'legend.fontsize': LEGEND_FONT_SIZE,
+        'xtick.labelsize': TICK_FONT_SIZE,
+        'ytick.labelsize': TICK_FONT_SIZE,
+        'legend.frameon': True,
+    })
+    plt.figure(figsize=figsize)
 
 def _find_workspace_root():
     # Find ancestor directory that contains src/vi; fallback to cwd
@@ -118,7 +145,8 @@ def read_mean_abs_energy(params_label):
 
 
 def plot_heatmap(alphas, betas, grid, out_path, vmin=None, vmax=None, log=False):
-    fig, ax = plt.subplots(figsize=(8, 6))
+    _init_fig(figsize=(8, 7))
+    fig, ax = plt.subplots(figsize=(8, 7))
     # grid shape: (len(betas), len(alphas)) where rows=beta, cols=alpha
     norm = None
     im_kwargs = dict(origin='lower', aspect='auto', cmap='viridis', interpolation='nearest')
@@ -149,15 +177,31 @@ def plot_heatmap(alphas, betas, grid, out_path, vmin=None, vmax=None, log=False)
     im = ax.imshow(grid, **im_kwargs)
     ax.set_xticks(np.arange(len(alphas)))
     ax.set_yticks(np.arange(len(betas)))
-    ax.set_xticklabels([str(a) for a in alphas])
-    ax.set_yticklabels([str(b) for b in betas])
+    # format tick labels with consistent precision
+    ax.set_xticklabels([f"{a:.3f}" for a in alphas], rotation=45, ha='right')
+    ax.set_yticklabels([f"{b:.4f}" for b in betas])
     ax.set_xlabel('alpha')
     ax.set_ylabel('beta')
     ax.set_title('ETSVI Mean Absolute Energy Error')
     cbar = fig.colorbar(im, ax=ax)
     cbar.set_label('Mean |ΔEnergy| (J)')
+    # nicer colorbar tick formatting
+    try:
+        from matplotlib.ticker import ScalarFormatter, LogFormatterSciNotation
+        if log:
+            # For log scale use scientific notation formatter
+            cbar.formatter = LogFormatterSciNotation(base=10.0)
+        else:
+            sf = ScalarFormatter(useMathText=True)
+            sf.set_scientific(True)
+            # force scientific notation for small/large numbers
+            sf.set_powerlimits((-3, 3))
+            cbar.formatter = sf
+        cbar.update_ticks()
+    except Exception:
+        pass
     plt.tight_layout()
-    plt.savefig(out_path, dpi=200)
+    fig.savefig(out_path, dpi=DEFAULT_DPI)
     plt.close(fig)
 
 

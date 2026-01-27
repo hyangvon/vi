@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import yaml
+import time
 import numpy as np
 import pybullet as p
 import pybullet_data
@@ -112,8 +113,12 @@ def main():
 
     # main loop
     t = 0.0
+    runtimes = []
     for step in range(n_steps):
+        t0 = time.perf_counter()
         p.stepSimulation(physicsClientId=client)
+        elapsed = time.perf_counter() - t0
+        runtimes.append(elapsed)
 
         q = [p.getJointState(body, i, physicsClientId=client)[0] for i in range(num_joints)]
         qdot = [p.getJointState(body, i, physicsClientId=client)[1] for i in range(num_joints)]
@@ -185,6 +190,19 @@ def main():
     np.savetxt(os.path.join(csv_dir, 'ee_history.csv'), np.array(ee_history), delimiter=',')
 
     p.disconnect(client)
+
+    # compute and save average runtime (ms)
+    try:
+        if len(runtimes) > 0:
+            avg_time_s = float(np.mean(runtimes))
+        else:
+            avg_time_s = 0.0
+        avg_ms = avg_time_s * 1000.0
+        print(f"Average PyBullet step time: {avg_ms:.6f} ms")
+        with open(os.path.join(csv_dir, 'avg_runtime.txt'), 'w') as f:
+            f.write(f"{avg_ms}\n")
+    except Exception:
+        pass
 
 if __name__ == '__main__':
     main()

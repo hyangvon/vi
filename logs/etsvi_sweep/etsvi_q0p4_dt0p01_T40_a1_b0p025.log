@@ -860,3 +860,21 @@ Params: /home/user/ros2_ws/dynamic_ws/src/vi/config/vi_params_q0p4_dt0p01_T40_a1
 [INFO] [1769166381.169738420] [etsvi_node]: Simulation finished, wall time: 22.337868 s, Average step time: 26.171998 ms
 [INFO] [1769166381.175854279] [etsvi_node]: Data saved to src/vi/csv/q0p4_dt0p01_T40_a1_b0p025/etsvi/
 
+Experiment: q0p4_dt0p01_T40_a1_b0p025
+Params: /home/user/ros2_ws/dynamic_ws/src/vi/config/vi_params_q0p4_dt0p01_T40_a1_b0p025.yaml
+Skipped run (existing /home/user/ros2_ws/dynamic_ws/src/vi/csv/q0p4_dt0p01_T40_a1_b0p025/etsvi/delta_energy_history.csv)
+Experiment: q0p4_dt0p01_T40_a1_b0p025
+Params: /home/user/ros2_ws/dynamic_ws/src/vi/config/vi_params_q0p4_dt0p01_T40_a1_b0p025.yaml
+Skipped run (existing /home/user/ros2_ws/dynamic_ws/src/vi/csv/q0p4_dt0p01_T40_a1_b0p025/etsvi/delta_energy_history.csv)
+Experiment: q0p4_dt0p01_T40_a1_b0p025
+Params: /home/user/ros2_ws/dynamic_ws/src/vi/config/vi_params_q0p4_dt0p01_T40_a1_b0p025.yaml
+Skipped run (existing /home/user/ros2_ws/dynamic_ws/src/vi/csv/q0p4_dt0p01_T40_a1_b0p025/etsvi/delta_energy_history.csv)
+Experiment: q0p4_dt0p01_T40_a1_b0p025
+Params: /home/user/ros2_ws/dynamic_ws/src/vi/config/vi_params_q0p4_dt0p01_T40_a1_b0p025.yaml
+Skipped run (existing /home/user/ros2_ws/dynamic_ws/src/vi/csv/q0p4_dt0p01_T40_a1_b0p025/etsvi/delta_energy_history.csv)
+Experiment: q0p4_dt0p01_T40_a1_b0p025
+Params: /home/user/ros2_ws/dynamic_ws/src/vi/config/vi_params_q0p4_dt0p01_T40_a1_b0p025.yaml
+Skipped run (existing /home/user/ros2_ws/dynamic_ws/src/vi/csv/q0p4_dt0p01_T40_a1_b0p025/etsvi/delta_energy_history.csv)
+Experiment: q0p4_dt0p01_T40_a1_b0p025
+Params: /home/user/ros2_ws/dynamic_ws/src/vi/config/vi_params_q0p4_dt0p01_T40_a1_b0p025.yaml
+Skipped run (existing /home/user/ros2_ws/dynamic_ws/src/vi/csv/q0p4_dt0p01_T40_a1_b0p025/etsvi/delta_energy_history.csv)

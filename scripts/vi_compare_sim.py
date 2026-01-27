@@ -16,10 +16,10 @@ DEFAULT_DPI = 200
 
 # 字体与样式统一设置
 FONT_FAMILY = 'DejaVu Sans'
-TITLE_FONT_SIZE = 14
-LABEL_FONT_SIZE = 12
-LEGEND_FONT_SIZE = 12
-TICK_FONT_SIZE = 11
+TITLE_FONT_SIZE = 20
+LABEL_FONT_SIZE = 18
+LEGEND_FONT_SIZE = 18
+TICK_FONT_SIZE = 18
 TITLE_FONT_WEIGHT = 'bold'
 
 def _init_fig(figsize=None):
@@ -477,7 +477,7 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
                 series[alg]['labels'].append(param_label)
 
         # 绘制折线：每个算法分别为 q0p2 和 q0p4 两组绘制一条线（不同线型）
-        _init_fig(figsize=(8, 6))
+        _init_fig(figsize=(6, 5.5))
         cmap = plt.get_cmap('tab10')
         colors = {alg: cmap(i) for i, alg in enumerate(series.keys())}
         # 为不同算法分配不同 marker
@@ -520,22 +520,22 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
     plt.grid(True, alpha=0.3)
 
     # 在图中添加三条平行注释箭头，指向左下角区域，表示越靠近左下角越好
-    try:
-        target_x, target_y = 0.4, 0.4  # 目标点（axes fraction）
-        # 三条箭头的起始文本位置（在图上方略有垂直间隔）
-        text_positions = [(0.55, 0.52), (0.6, 0.48), (0.65, 0.44)]
-        arrow_props = dict(arrowstyle='->', color='black', lw=1.2)
-        for i, tp in enumerate(text_positions):
-            # 每条箭头指向目标点并略微错开目标 y 以产生“簇”效果
-            plt.annotate('', xy=(target_x + i*0.05, target_y - i*0.04), xycoords='axes fraction',
-                         xytext=tp, textcoords='axes fraction', arrowprops=arrow_props)
+    # try:
+    #     target_x, target_y = 0.2, 0.2  # 目标点（axes fraction）
+    #     # 三条箭头的起始文本位置（在图上方略有垂直间隔）
+    #     text_positions = [(0.4, 0.4), (0.45, 0.36), (0.5, 0.32)]
+    #     arrow_props = dict(arrowstyle='->', color='black', lw=1.2)
+    #     for i, tp in enumerate(text_positions):
+    #         # 每条箭头指向目标点并略微错开目标 y 以产生“簇”效果
+    #         plt.annotate('', xy=(target_x + i*0.05, target_y - i*0.04), xycoords='axes fraction',
+    #                      xytext=tp, textcoords='axes fraction', arrowprops=arrow_props)
 
-        # 旁注文字（仅一处描述）
-        plt.text(0.62, 0.50, 'Direction of higher\nenergy accuracy and\nlower runtime',
-                 transform=plt.gca().transAxes, fontsize=11,
-                 bbox=dict(boxstyle='round,pad=0.3', fc='white', ec='none', alpha=0.9))
-    except Exception:
-        pass
+    #     # 旁注文字（仅一处描述）
+    #     plt.text(0.62, 0.50, 'Direction of higher\nenergy accuracy and\nlower runtime',
+    #              transform=plt.gca().transAxes, fontsize=11,
+    #              bbox=dict(boxstyle='round,pad=0.3', fc='white', ec='none', alpha=0.9))
+    # except Exception:
+    #     pass
 
     filename = f"runtime_vs_energy_{tag}.png"
     # _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
@@ -815,13 +815,13 @@ def plot_results(tag, dpi_set):
         # 使用 np.gradient 可保持与原数组相同长度
         zdot = np.gradient(z, time_etsvi)
 
-        _init_fig(figsize=(6, 6))
+        _init_fig(figsize=(7, 7))
         plt.plot(z, zdot, color=c_etsvi, linestyle='-', linewidth=1.5)
         plt.scatter(z[0], zdot[0], marker='o', color='green', label='start')
         plt.scatter(z[-1], zdot[-1], marker='X', color='red', label='end')
         plt.xlabel('TCP Position Z (m)')
         plt.ylabel('TCP Velocity Z (m/s)')
-        plt.title('ETSVI TCP Phase Plane (z vs zdot)')
+        plt.title('C-ATSVI TCP Phase Plane (z vs zdot)')
         plt.grid(True, alpha=0.3)
         handles, leg_labels = plt.gca().get_legend_handles_labels()
         if leg_labels:
@@ -857,11 +857,11 @@ def main():
 
     # 运行仿真（除非用户要求跳过）
     if not args.skip_sim:
-        # if not run_ctsvi():
-        #     return 1
+        if not run_ctsvi():
+            return 1
 
-        # if not run_atsvi():
-        #     return 1
+        if not run_atsvi():
+            return 1
 
         if not run_etsvi():
             return 1
