@@ -4025,3 +4025,12 @@ Skipped run (existing /home/user/ros2_ws/dynamic_ws/src/vi/csv/q0p4_dt0p01_T40_a
 Experiment: q0p4_dt0p01_T40_a0p15_b0p005
 Params: /home/user/ros2_ws/dynamic_ws/src/vi/config/vi_params_q0p4_dt0p01_T40_a0p15_b0p005.yaml
 Skipped run (existing /home/user/ros2_ws/dynamic_ws/src/vi/csv/q0p4_dt0p01_T40_a0p15_b0p005/etsvi/delta_energy_history.csv)
+Experiment: q0p4_dt0p01_T40_a0p15_b0p005
+Params: /home/user/ros2_ws/dynamic_ws/src/vi/config/vi_params_q0p4_dt0p01_T40_a0p15_b0p005.yaml
+Skipped run (existing /home/user/ros2_ws/dynamic_ws/src/vi/csv/q0p4_dt0p01_T40_a0p15_b0p005/etsvi/delta_energy_history.csv)
+Experiment: q0p4_dt0p01_T40_a0p15_b0p005
+Params: /home/user/ros2_ws/dynamic_ws/src/vi/config/vi_params_q0p4_dt0p01_T40_a0p15_b0p005.yaml
+Skipped run (existing /home/user/ros2_ws/dynamic_ws/src/vi/csv/q0p4_dt0p01_T40_a0p15_b0p005/etsvi/delta_energy_history.csv)
+Experiment: q0p4_dt0p01_T40_a0p15_b0p005
+Params: /home/user/ros2_ws/dynamic_ws/src/vi/config/vi_params_q0p4_dt0p01_T40_a0p15_b0p005.yaml
+Skipped run (existing /home/user/ros2_ws/dynamic_ws/src/vi/csv/q0p4_dt0p01_T40_a0p15_b0p005/etsvi/delta_energy_history.csv)

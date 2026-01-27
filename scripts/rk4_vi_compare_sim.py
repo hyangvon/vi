@@ -418,7 +418,7 @@ def plot_results(tag, dpi_set):
 
     plt.xlabel('Time [s]')
     plt.ylabel('Position [m]')
-    plt.title('TCP Position')
+    plt.title('Tip Position')
     plt.legend(loc='upper left')
     plt.grid(True)
     plt.ylim(-8, -3)
@@ -697,7 +697,7 @@ def main():
             print("Warning: pybullet inline run failed or skipped. Proceeding to plotting with available CSVs.")
 
     # 绘制结果
-    if not plot_results("vs_r_p", 1000):
+    if not plot_results("vs_r_p", 500):
         return 1
 
     print("All tasks completed successfully!")

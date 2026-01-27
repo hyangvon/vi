@@ -59,7 +59,7 @@ def plot_7dof_chain(x, z, save_path=None, title='7-DoF Pendulum Initial Configur
     ax.scatter(x[0], z[0], s=200, marker='^', c='black', zorder=3, label='Base (Fixed)')
 
     # 4. 末端执行器
-    ax.scatter(x[-1], z[-1], s=150, c='#2ecc71', marker='*', zorder=3, label='Tool Center Point (TCP)')
+    ax.scatter(x[-1], z[-1], s=150, c='#2ecc71', marker='*', zorder=3, label='End-Tip')
 
     # 5. 零位参考线（竖直向下）
     n_links = len(x)-1

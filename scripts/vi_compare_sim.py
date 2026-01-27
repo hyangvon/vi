@@ -775,8 +775,8 @@ def plot_results(tag, dpi_set):
 
     # ---------- 5. 绘制timestep ----------
     _init_fig()
-    plt.plot(time_atsvi, step_atsvi, label='Time Step of atsvi', linestyle='-.', linewidth=2)
-    plt.plot(time_etsvi, step_etsvi, label='Time Step of etsvi', linestyle='--', linewidth=2)
+    plt.plot(time_atsvi, step_atsvi, label='Time Step of ATSVI', linestyle='-.', linewidth=2)
+    plt.plot(time_etsvi, step_etsvi, label='Time Step of C-ATSVI', linestyle='--', linewidth=2)
     plt.xlabel('Time [s]')
     plt.ylabel('Step')
     plt.title('Adaptive Time Step')
@@ -801,7 +801,7 @@ def plot_results(tag, dpi_set):
 
     plt.xlabel('Time [s]')
     plt.ylabel('Position [m]')
-    plt.title('TCP Position')
+    plt.title('Tip Position')
     plt.legend(loc='upper left')
     plt.grid(True)
     plt.ylim(-8, -3)
@@ -819,9 +819,9 @@ def plot_results(tag, dpi_set):
         plt.plot(z, zdot, color=c_etsvi, linestyle='-', linewidth=1.5)
         plt.scatter(z[0], zdot[0], marker='o', color='green', label='start')
         plt.scatter(z[-1], zdot[-1], marker='X', color='red', label='end')
-        plt.xlabel('TCP Position Z (m)')
-        plt.ylabel('TCP Velocity Z (m/s)')
-        plt.title('C-ATSVI TCP Phase Plane (z vs zdot)')
+        plt.xlabel('Tip Position Z (m)')
+        plt.ylabel('Tip Velocity Z (m/s)')
+        plt.title('C-ATSVI Tip Position Phase Plane')
         plt.grid(True, alpha=0.3)
         handles, leg_labels = plt.gca().get_legend_handles_labels()
         if leg_labels:
@@ -867,7 +867,7 @@ def main():
             return 1
 
     # 绘制结果
-    if not plot_results("vs_c_a", 1000):
+    if not plot_results("vs_c_a", 500):
         return 1
 
     print("All tasks completed successfully!")

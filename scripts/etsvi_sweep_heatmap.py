@@ -21,7 +21,7 @@ except Exception:
 
 # 绘图统一风格与辅助函数
 FIGSIZE = (6, 6)
-DEFAULT_DPI = 1000
+DEFAULT_DPI = 500
 
 # 字体与样式统一设置
 FONT_FAMILY = 'DejaVu Sans'
@@ -182,7 +182,7 @@ def plot_heatmap(alphas, betas, grid, out_path, vmin=None, vmax=None, log=False)
     ax.set_yticklabels([f"{b:.4f}" for b in betas])
     ax.set_xlabel('alpha')
     ax.set_ylabel('beta')
-    ax.set_title('ETSVI Mean Absolute Energy Error')
+    ax.set_title('C-ATSVI Mean Absolute Energy Error')
     cbar = fig.colorbar(im, ax=ax)
     cbar.set_label('Mean |ΔEnergy| (J)')
     # nicer colorbar tick formatting
