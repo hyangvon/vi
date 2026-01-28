@@ -5,6 +5,12 @@ import time
 import numpy as np
 import pybullet as p
 import pybullet_data
+try:
+    import pinocchio as pin
+    PINOCCHIO_AVAILABLE = True
+except Exception:
+    PINOCCHIO_AVAILABLE = False
+print(f"Pinocchio available: {PINOCCHIO_AVAILABLE}")
 
 # Simple PyBullet simulator that reproduces dynamics and writes CSVs
 
@@ -39,6 +45,22 @@ def main():
 
     num_joints = p.getNumJoints(body, physicsClientId=client)
 
+    # Build Pinocchio model if available (used to include Pinocchio cost in timing
+    # and to compute inertia matrix consistently)
+    pin_model = None
+    pin_data = None
+    pin_error_count = 0
+    pin_runtimes = []
+    if PINOCCHIO_AVAILABLE:
+        try:
+            pin_model = pin.buildModelFromUrdf(urdf_path)
+            pin_data = pin.Data(pin_model)
+            print(f"Pinocchio model built: nq={pin_model.nq}, nv={pin_model.nv}")
+        except Exception as e:
+            print(f"Warning: failed to build Pinocchio model: {e}")
+            pin_model = None
+            pin_data = None
+
     # find link index for 'link_tcp'
     link_tcp_idx = -1
     for i in range(num_joints):
@@ -58,6 +80,7 @@ def main():
     energy_history = []
     delta_energy_history = []
     ee_history = []
+    momentum_history = []
 
     def compute_ke(qdot_arr, M):
         """Compute kinetic energy robustly when M and qdot sizes may differ."""
@@ -118,18 +141,63 @@ def main():
         t0 = time.perf_counter()
         p.stepSimulation(physicsClientId=client)
         elapsed = time.perf_counter() - t0
-        runtimes.append(elapsed)
+
+        # If Pinocchio is available, perform CRBA/ABA to include its cost into timing
+        pin_elapsed = 0.0
+        if pin_model is not None and pin_data is not None:
+            try:
+                q_pin = np.array([p.getJointState(body, i, physicsClientId=client)[0] for i in range(num_joints)])
+                v_pin = np.array([p.getJointState(body, i, physicsClientId=client)[1] for i in range(num_joints)])
+                tpin0 = time.perf_counter()
+                # CRBA
+                pin.crba(pin_model, pin_data, q_pin)
+                # ABA with zero torques to compute ddq (main cost)
+                tau_zero = np.zeros(v_pin.shape)
+                try:
+                    pin.aba(pin_model, pin_data, q_pin, v_pin, tau_zero)
+                except Exception as e:
+                    # aba may fail for some models; record error and continue
+                    pin_error_count += 1
+                pin_elapsed = time.perf_counter() - tpin0
+                pin_runtimes.append(pin_elapsed)
+            except Exception as e:
+                pin_error_count += 1
+                pin_elapsed = 0.0
+
+        runtimes.append(elapsed + pin_elapsed)
 
         q = [p.getJointState(body, i, physicsClientId=client)[0] for i in range(num_joints)]
         qdot = [p.getJointState(body, i, physicsClientId=client)[1] for i in range(num_joints)]
 
-        try:
-            M = np.array(p.calculateMassMatrix(body, q, physicsClientId=client))
-        except Exception:
-            M = np.eye(num_joints)
-
+        # Prefer Pinocchio inertia when available for momentum computation and KE
         qdot_arr = np.array(qdot)
-        KE = compute_ke(qdot_arr, M)
+        if pin_model is not None and pin_data is not None:
+            try:
+                pin.crba(pin_model, pin_data, np.array(q))
+                M_pin = np.array(pin_data.M)
+                # extract top-left submatrix matching q size
+                m0, m1 = M_pin.shape
+                n_q = qdot_arr.size
+                if m0 >= n_q and m1 >= n_q:
+                    M_sub = M_pin[:n_q, :n_q]
+                else:
+                    M_sub = np.zeros((n_q, n_q))
+                    r = min(m0, n_q)
+                    c = min(m1, n_q)
+                    M_sub[:r, :c] = M_pin[:r, :c]
+                KE = 0.5 * qdot_arr @ M_sub @ qdot_arr
+            except Exception:
+                try:
+                    M = np.array(p.calculateMassMatrix(body, q, physicsClientId=client))
+                except Exception:
+                    M = np.eye(num_joints)
+                KE = compute_ke(qdot_arr, M)
+        else:
+            try:
+                M = np.array(p.calculateMassMatrix(body, q, physicsClientId=client))
+            except Exception:
+                M = np.eye(num_joints)
+            KE = compute_ke(qdot_arr, M)
 
         U = 0.0
         for i in range(-1, num_joints):
@@ -153,6 +221,39 @@ def main():
         energy_history.append(E)
         delta_energy_history.append(E - E_ref)
         ee_history.append(np.array(ee_pos))
+        # compute generalized momentum p = M_sub * qdot_arr
+        try:
+            if pin_model is not None and pin_data is not None:
+                M_mat = np.array(pin_data.M)
+                n_q = qdot_arr.size
+                m0, m1 = M_mat.shape
+                if m0 >= n_q and m1 >= n_q:
+                    M_sub = M_mat[:n_q, :n_q]
+                else:
+                    M_sub = np.zeros((n_q, n_q))
+                    r = min(m0, n_q)
+                    c = min(m1, n_q)
+                    M_sub[:r, :c] = M_mat[:r, :c]
+                p_vec = M_sub.dot(qdot_arr)
+            else:
+                M_mat = np.array(M)
+                n_q = qdot_arr.size
+                if M_mat.ndim == 1:
+                    M_full = np.diag(M_mat)
+                else:
+                    M_full = M_mat
+                m0, m1 = M_full.shape
+                if m0 >= n_q and m1 >= n_q:
+                    M_sub = M_full[:n_q, :n_q]
+                else:
+                    M_sub = np.zeros((n_q, n_q))
+                    r = min(m0, n_q)
+                    c = min(m1, n_q)
+                    M_sub[:r, :c] = M_full[:r, :c]
+                p_vec = M_sub.dot(qdot_arr)
+        except Exception:
+            p_vec = np.zeros((len(qdot),), dtype=float)
+        momentum_history.append(np.asarray(p_vec))
 
         t += timestep
 
@@ -188,6 +289,8 @@ def main():
     np.savetxt(os.path.join(csv_dir, 'energy_history.csv'), np.array(energy_history), delimiter=',')
     np.savetxt(os.path.join(csv_dir, 'delta_energy_history.csv'), np.array(delta_energy_history), delimiter=',')
     np.savetxt(os.path.join(csv_dir, 'ee_history.csv'), np.array(ee_history), delimiter=',')
+    if len(momentum_history) > 0:
+        np.savetxt(os.path.join(csv_dir, 'momentum_history.csv'), np.array(momentum_history), delimiter=',')
 
     p.disconnect(client)
 
@@ -198,9 +301,22 @@ def main():
         else:
             avg_time_s = 0.0
         avg_ms = avg_time_s * 1000.0
-        print(f"Average PyBullet step time: {avg_ms:.6f} ms")
+        print(f"Average PyBullet step time (incl. Pinocchio if used): {avg_ms:.6f} ms")
+        # report Pinocchio-only average if available
+        if len(pin_runtimes) > 0:
+            avg_pin_s = float(np.mean(pin_runtimes))
+            print(f"Average Pinocchio per-step time: {avg_pin_s*1000.0:.6f} ms (count={len(pin_runtimes)}, errors={pin_error_count})")
+        else:
+            avg_pin_s = None
+            if PINOCCHIO_AVAILABLE and pin_model is None:
+                print("Pinocchio was available but model build failed; pin timings not recorded.")
+
         with open(os.path.join(csv_dir, 'avg_runtime.txt'), 'w') as f:
             f.write(f"{avg_ms}\n")
+        # save pin-only avg if available
+        if avg_pin_s is not None:
+            with open(os.path.join(csv_dir, 'avg_runtime_pin.txt'), 'w') as f:
+                f.write(f"{avg_pin_s*1000.0}\n")
     except Exception:
         pass
 

@@ -399,6 +399,7 @@ int main(int argc, char** argv)
     std::vector<double> h_history;
     std::vector<double> runtimes;
     std::vector<Eigen::Vector3d> ee_history;
+    std::vector<Vec> momentum_history;
 
     q_history.push_back(q_prev);
     time_history.push_back(0.0);
@@ -503,6 +504,29 @@ int main(int argc, char** argv)
     std::string cmd = "mkdir -p " + csv_dir; int unused = system(cmd.c_str()); (void)unused;
 
     write_csv(csv_dir + "q_history.csv", q_history);
+    // compute generalized momentum p = M(q_mid) * qdot for each recorded configuration
+    for (size_t i = 0; i < q_history.size(); ++i)
+    {
+        Vec qdot;
+        if (i == 0)
+        {
+            qdot = v_prev; // initial velocity
+        }
+        else
+        {
+            double hi = h_history[i];
+            if (hi == 0.0) hi = 1e-12;
+            qdot = (q_history[i] - q_history[i-1]) / hi;
+        }
+
+        Vec qmid = q_history[i];
+        if (i > 0) qmid = 0.5 * (q_history[i] + q_history[i-1]);
+        Mat Mmid = inertia_matrix(model, data, qmid);
+        Vec p = Mmid * qdot;
+        momentum_history.push_back(p);
+    }
+
+    write_csv(csv_dir + "momentum_history.csv", momentum_history);
     write_csv_scalar_series(csv_dir + "time_history.csv", time_history);
     write_csv_scalar_series(csv_dir + "energy_history.csv", energy_history);
     write_csv_scalar_series(csv_dir + "delta_energy_history.csv", delta_energy_history);

@@ -15,7 +15,7 @@ LEGEND_FONT_SIZE = 12
 TICK_FONT_SIZE = 11
 TITLE_FONT_WEIGHT = 'bold'
 
-DEFAULT_DPI = 200
+DEFAULT_DPI = 500
 
 def _apply_style():
     plt.rcParams.update({
@@ -46,7 +46,7 @@ def compute_fk_2d(q, link_length=1.0):
 
 def plot_7dof_chain(x, z, save_path=None, title='7-DoF Pendulum Initial Configuration'):
     _apply_style()
-    fig, ax = plt.subplots(figsize=(6, 8))
+    fig, ax = plt.subplots(figsize=(6, 6))
 
     # 1. 连杆
     ax.plot(x, z, 'o-', linewidth=3, color='#34495e', markersize=8, zorder=1, label='Links')
@@ -61,9 +61,7 @@ def plot_7dof_chain(x, z, save_path=None, title='7-DoF Pendulum Initial Configur
     # 4. 末端执行器
     ax.scatter(x[-1], z[-1], s=150, c='#2ecc71', marker='*', zorder=3, label='End-Tip')
 
-    # 5. 零位参考线（竖直向下）
-    n_links = len(x)-1
-    ax.plot([0, 0], [0, -n_links*1.0], '--', color='gray', alpha=0.5, label='Zero Configuration')
+    # (Removed) zero reference line to reduce visual clutter; only the q=0.2 pose is shown
 
     # 注释与美化
     ax.set_aspect('equal')
@@ -94,6 +92,7 @@ def main():
     x, z = compute_fk_2d(q, link_length=link_length)
     fig_path = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/fig/model/pendulum_7dof_2d.png')
     plot_7dof_chain(x, z, save_path=fig_path)
+    print('x, z:', x, z)
 
 
 if __name__ == '__main__':

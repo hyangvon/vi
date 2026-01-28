@@ -565,6 +565,7 @@ int main(int argc, char** argv)
     std::vector<double> h_history;
     std::vector<double> runtimes;
     std::vector<Eigen::Vector3d> ee_history;
+    std::vector<Vec> momentum_history;
 
     time_history.push_back(0.0);
     h_history.push_back(timestep);
@@ -673,6 +674,13 @@ int main(int argc, char** argv)
         auto [ee_pos, ee_rot] = compute_end_effector_pose(model, data, link_tcp_id, q_next);
         ee_history.push_back(ee_pos);
 
+        // compute generalized momentum p = M(q_mid) * qdot
+        Vec qdot = (q_next - q_history[q_history.size()-2]) / h_next;
+        Vec qmid = 0.5 * (q_next + q_history[q_history.size()-2]);
+        Mat Mmid = inertia_matrix(model, data, qmid);
+        Vec p = Mmid * qdot;
+        momentum_history.push_back(p);
+
         auto t1 = high_resolution_clock::now();
         double elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
         runtimes.push_back(elapsed);
@@ -713,6 +721,7 @@ int main(int argc, char** argv)
     std::string cmd = "mkdir -p " + csv_dir; int unused = system(cmd.c_str()); (void)unused;
 
     write_csv(csv_dir + "q_history.csv", q_history);
+    write_csv(csv_dir + "momentum_history.csv", momentum_history);
     write_csv_scalar_series(csv_dir + "time_history.csv", time_history);
     write_csv_scalar_series(csv_dir + "energy_history.csv", energy_history);
     write_csv_scalar_series(csv_dir + "h_history.csv", h_history);

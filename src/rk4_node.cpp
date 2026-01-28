@@ -29,6 +29,10 @@ using namespace std::chrono;
 using Vec  = Eigen::VectorXd;
 using Mat  = Eigen::MatrixXd;
 
+// Pinocchio timing diagnostics
+static std::vector<double> pin_runtimes;
+static int pin_error_count = 0;
+
 // 计算末端位姿（位置 + 旋转矩阵）
 std::pair<Eigen::Vector3d, Eigen::Matrix3d>
 compute_end_effector_pose(const Model &model,
@@ -48,7 +52,15 @@ compute_end_effector_pose(const Model &model,
 // ---------- double helpers (non-AD) ----------
 Mat inertia_matrix(const Model &model, Data &data, const Vec &q)
 {
-    pinocchio::crba(model, data, q);
+    try {
+        auto t0 = high_resolution_clock::now();
+        pinocchio::crba(model, data, q);
+        auto t1 = high_resolution_clock::now();
+        double elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
+        pin_runtimes.push_back(elapsed);
+    } catch (const std::exception &e) {
+        pin_error_count++;
+    }
     return data.M;
 }
 
@@ -86,7 +98,15 @@ State dynamics(const Model &model, Data &data, const State &state, const Vec &ta
     const Vec &v = state.v;
 
     // 使用 ABA 算法计算加速度
-    pinocchio::aba(model, data, q, v, tau);
+    try {
+        auto t0 = high_resolution_clock::now();
+        pinocchio::aba(model, data, q, v, tau);
+        auto t1 = high_resolution_clock::now();
+        double elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0).count();
+        pin_runtimes.push_back(elapsed);
+    } catch (const std::exception &e) {
+        pin_error_count++;
+    }
     Vec a = data.ddq;
 
     State ds;
@@ -285,6 +305,7 @@ int main(int argc, char** argv)
     // 历史记录
     std::vector<Vec> q_history;
     std::vector<Vec> v_history;
+    std::vector<Vec> momentum_history;
     std::vector<double> time_history;
     std::vector<double> energy_history;
     std::vector<double> delta_energy_history;
@@ -319,6 +340,14 @@ int main(int argc, char** argv)
         time_history.push_back(t_cur);
         q_history.push_back(state.q);
         v_history.push_back(state.v);
+
+        // compute generalized momentum p = M(q_mid) * qdot
+        Vec qmid = state.q;
+        if (q_history.size() > 1) qmid = 0.5 * (state.q + q_history[q_history.size()-2]);
+        Vec qdot = state.v;
+        Mat Mmid = inertia_matrix(model, data, qmid);
+        Vec p = Mmid * qdot;
+        momentum_history.push_back(p);
 
         // 能量计算
         double E_cur = compute_total_energy(model, data, state.q, state.v);
@@ -355,6 +384,7 @@ int main(int argc, char** argv)
 
     write_csv(csv_dir + "q_history.csv", q_history);
     write_csv(csv_dir + "v_history.csv", v_history);
+    write_csv(csv_dir + "momentum_history.csv", momentum_history);
     write_csv_scalar_series(csv_dir + "time_history.csv", time_history);
     write_csv_scalar_series(csv_dir + "energy_history.csv", energy_history);
     write_csv_scalar_series(csv_dir + "delta_energy_history.csv", delta_energy_history);
@@ -363,6 +393,21 @@ int main(int argc, char** argv)
     std::ofstream avg_time_file(csv_dir + "avg_runtime.txt");
     avg_time_file << avg_time * 1000 << std::endl;  // 保存为毫秒单位
     avg_time_file.close();
+
+    // Save Pinocchio-only average runtime if we collected any timings
+    try {
+        if (!pin_runtimes.empty()) {
+            double avg_pin = std::accumulate(pin_runtimes.begin(), pin_runtimes.end(), 0.0) / pin_runtimes.size();
+            std::ofstream pin_time_file(csv_dir + "avg_runtime_pin.txt");
+            pin_time_file << (avg_pin * 1000.0) << std::endl; // ms
+            pin_time_file.close();
+            RCLCPP_INFO(node->get_logger(), "Saved Pinocchio avg per-step time: %f ms (samples=%zu, errors=%d)", avg_pin*1000.0, pin_runtimes.size(), pin_error_count);
+        } else {
+            RCLCPP_INFO(node->get_logger(), "No Pinocchio timing samples collected.");
+        }
+    } catch (const std::exception &e) {
+        RCLCPP_WARN(node->get_logger(), "Failed to write Pinocchio timing file: %s", e.what());
+    }
 
     RCLCPP_INFO(node->get_logger(), "Data saved to %s", csv_dir.c_str());
 

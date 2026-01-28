@@ -265,7 +265,8 @@ def plot_runtime_comparison(tag, dpi_set):
     # 定义算法和对应的文件路径（位于参数化目录下）
     algorithms = {
         'etsvi': os.path.join(params, 'etsvi', 'avg_runtime.txt'),
-        'rk4': os.path.join(params, 'rk4', 'avg_runtime.txt')
+        'rk4': os.path.join(params, 'rk4', 'avg_runtime.txt'),
+        'pybullet': os.path.join(params, 'pybullet', 'avg_runtime.txt')
     }
 
     avg_times = []
@@ -285,7 +286,7 @@ def plot_runtime_comparison(tag, dpi_set):
     # 绘制柱状图（使用统一风格）
     _init_fig(figsize=(10, 6))
     bars = plt.bar(labels, avg_times,
-                   color=['lightcoral', 'lightyellow'],
+                   color=['lightcoral', 'lightyellow', 'lightblue'][:len(labels)],
                    alpha=0.7,
                    edgecolor='black',
                    linewidth=1)
@@ -426,6 +427,11 @@ def plot_results(tag, dpi_set):
     _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
 
     plot_runtime_comparison(tag, dpi_set)
+    # 绘制 ETSVI / RK4 / PyBullet 的第7关节动量对比图
+    try:
+        plot_momentum_compare_joint7(tag, dpi_set, joint_idx=7)
+    except Exception as e:
+        print(f"Warning: failed to plot momentum comparison: {e}")
     
     # 绘制第7关节相平面（关节编号从1开始，脚本内部使用0-based）
     # plot_phase_plane("etsvi_rk4_compare", 300, joint_index=6)
@@ -434,6 +440,87 @@ def plot_results(tag, dpi_set):
     # plot_poincare_section("etsvi_rk4_compare", 300, joint_index=6, trigger_joint_index=0, surface='q=0', direction='+')
 
     return 1
+
+
+def plot_momentum_compare_joint7(tag, dpi_set, joint_idx=7):
+    """
+    在 RK4 比较脚本中绘制 ETSVI / RK4 / PyBullet 的关节动量对比（默认关节7）。
+    搜索参数化 CSV 目录下的 momentum_history.csv 与 time_history.csv。
+    """
+    print(f"Generating joint {joint_idx} momentum comparison (ETSVI/RK4/PyBullet)...")
+    base = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/csv/')
+    params = build_params_label()
+    paths = {
+        'ETSVI': os.path.join(base, params, 'etsvi', 'momentum_history.csv'),
+        'RK4': os.path.join(base, params, 'rk4', 'momentum_history.csv'),
+        'PyBullet': os.path.join(base, params, 'pybullet', 'momentum_history.csv')
+    }
+    times = {
+        'ETSVI': os.path.join(base, params, 'etsvi', 'time_history.csv'),
+        'RK4': os.path.join(base, params, 'rk4', 'time_history.csv'),
+        'PyBullet': os.path.join(base, params, 'pybullet', 'time_history.csv')
+    }
+
+    _init_fig(figsize=(7,4))
+    cmap = plt.get_cmap('tab10')
+    colmap = {'ETSVI': cmap(2), 'RK4': cmap(0), 'PyBullet': cmap(1)}
+    any_plotted = False
+    for name, p in paths.items():
+        if not os.path.exists(p):
+            print(f"Info: {name} momentum file not found at {p}")
+            continue
+        try:
+            mom = np.loadtxt(p, delimiter=',')
+            mom = np.atleast_2d(mom).astype(float)
+        except Exception as e:
+            print(f"Failed to read {p}: {e}")
+            continue
+
+        tpath = times.get(name)
+        t = None
+        if tpath and os.path.exists(tpath):
+            try:
+                t = np.loadtxt(tpath, delimiter=',')
+                t = np.atleast_1d(t).astype(float)
+            except Exception:
+                t = None
+        if t is None:
+            t = np.arange(mom.shape[0])
+
+        # Ensure orientation: if momentum rows don't match time length
+        # try transposing, otherwise trim to the minimum length
+        if t is not None:
+            if mom.shape[0] != t.shape[0]:
+                # common case: file saved transposed (cols=time)
+                if mom.shape[1] == t.shape[0]:
+                    mom = mom.T
+                    print(f"Info: transposed momentum matrix for {name}")
+                else:
+                    minlen = min(mom.shape[0], t.shape[0])
+                    print(f"Warning: shape mismatch for {name}, trimming to {minlen} samples")
+                    mom = mom[:minlen, :]
+                    t = t[:minlen]
+
+        idx0 = joint_idx - 1
+        if idx0 < 0 or idx0 >= mom.shape[1]:
+            print(f"{name}: requested joint {joint_idx} out of range (cols={mom.shape[1]})")
+            continue
+
+        plt.plot(t, mom[:, idx0], label=name, color=colmap.get(name), linewidth=2)
+        any_plotted = True
+
+    if not any_plotted:
+        print("No momentum data available for joint comparison.")
+        return False
+
+    plt.xlabel('Time [s]')
+    plt.ylabel(f'Momentum (joint {joint_idx})')
+    plt.title(f'Joint {joint_idx} Momentum Comparison')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    filename = f"momentum_compare_joint{joint_idx}_{tag}.png"
+    _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
+    return True
 
 
 def plot_phase_plane(tag, dpi_set, joint_index=6):

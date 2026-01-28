@@ -298,13 +298,21 @@ def plot_runtime_comparison(tag, dpi_set):
         print(f"{label}: {time_val:.3f}ms")
 
 
-def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
+def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None, font_sizes=None):
     """
     绘制平均运行时间 (x) vs 平均能量误差 (y) 的对比图。
     函数会按 csv_paths 的顺序为每种算法绘制连线，x 轴为 runtime，y 轴为 mean(|delta_energy|)。
     """
 
     print("Generating runtime vs energy plot...")
+    # font_sizes: dict with keys 'title','label','tick','legend','text'
+    if font_sizes is None:
+        font_sizes = {}
+    title_fs = font_sizes.get('title', 18)
+    label_fs = font_sizes.get('label', 16)
+    tick_fs = font_sizes.get('tick', 15)
+    legend_fs = font_sizes.get('legend', 16)
+    text_fs = font_sizes.get('text', 15)
     base = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/csv/')
 
     params_base = [
@@ -410,11 +418,11 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
         for i, (x, y, lbl, c) in enumerate(zip(xs, ys, labels, colors)):
             m = markers[i % len(markers)]
             plt.scatter(x, y, label=lbl, color=c, s=120, marker=m)
-            plt.text(x, y, f' {lbl}', verticalalignment='center', fontsize=11)
+            plt.text(x, y, f' {lbl}', verticalalignment='center', fontsize=text_fs)
         # 仅当存在带标签的 artist 时显示图例，避免警告
         handles, leg_labels = plt.gca().get_legend_handles_labels()
         if leg_labels:
-            plt.legend()
+            plt.legend(fontsize=legend_fs)
         plt.xlim(0, 65)
         plt.ylim(0, 0.01)
 
@@ -509,15 +517,17 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None):
         # 仅当存在带标签的 artist 时显示图例，避免警告
         handles, leg_labels = plt.gca().get_legend_handles_labels()
         if leg_labels:
-            plt.legend()
+            plt.legend(fontsize=legend_fs)
         # plt.xlim(0, 65)
         # plt.ylim(-0.002, 0.01)
 
     # plt.xlabel('Average Runtime (ms)')
-    plt.xlabel('Total Runtime (ms)')
-    plt.ylabel('Mean Absolute Energy Error (J)')
-    plt.title('Runtime vs Energy Error')
+    plt.xlabel('Total Runtime (ms)', fontsize=label_fs)
+    plt.ylabel('Mean Absolute Energy Error (J)', fontsize=label_fs)
+    plt.title('Runtime vs Energy Error', fontsize=title_fs)
     plt.grid(True, alpha=0.3)
+    plt.xticks(fontsize=tick_fs)
+    plt.yticks(fontsize=tick_fs)
 
     # 在图中添加三条平行注释箭头，指向左下角区域，表示越靠近左下角越好
     # try:
@@ -596,6 +606,127 @@ def compute_and_save_energy_errors(tag):
 
     print(f"Saved energy error summary to {out_path}")
     return out_path
+
+
+def plot_momentum(tag, dpi_set):
+    """
+    绘制 CTSVI / ATSVI / C-ATSVI 的动量历史（momentum_history.csv）。
+    如果文件存在则读取并绘制每个分量随时间的变化。
+    """
+    print("Generating momentum plot...")
+    base = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/csv/')
+    params_base = build_params_label(include_lyap=True)
+
+    csv_dirs = {
+        'CTSVI': os.path.join(base, params_base, 'ctsvi_ad'),
+        'ATSVI': os.path.join(base, params_base, 'atsvi_ad'),
+        'C-ATSVI': os.path.join(base, params_base, 'etsvi'),
+    }
+
+    data = {}
+    times = {}
+    for name, d in csv_dirs.items():
+        mom_path = os.path.join(d, 'momentum_history.csv')
+        time_path = os.path.join(d, 'time_history.csv')
+        if os.path.exists(mom_path):
+            try:
+                arr = np.loadtxt(mom_path, delimiter=',')
+                arr = np.atleast_2d(arr).astype(float)
+                # ensure shape (N, D)
+                if arr.ndim == 1:
+                    arr = arr.reshape(-1, 1)
+                data[name] = arr
+            except Exception as e:
+                print(f"Warning: failed to read {mom_path}: {e}")
+                data[name] = None
+        else:
+            print(f"Info: {mom_path} not found")
+            data[name] = None
+
+        if os.path.exists(time_path):
+            try:
+                t = np.loadtxt(time_path, delimiter=',')
+                t = np.atleast_1d(t).astype(float)
+                times[name] = t
+            except Exception:
+                times[name] = None
+        else:
+            times[name] = None
+
+    # 如果全部为空则跳过
+    if all(v is None for v in data.values()):
+        print("No momentum data found for any algorithm; skipping momentum plot.")
+        return None
+
+    _init_fig(figsize=(8, 6))
+    cmap = plt.get_cmap('tab10')
+    for i, (name, arr) in enumerate(data.items()):
+        if arr is None:
+            continue
+        t = times.get(name)
+        if t is None or t.size != arr.shape[0]:
+            # fallback to sample index
+            t = np.arange(arr.shape[0])
+
+        # plot each column as a separate line
+        for j in range(arr.shape[1]):
+            label = f"{name} m{j+1}" if arr.shape[1] > 1 else f"{name}"
+            plt.plot(t, arr[:, j], label=label, color=cmap(i), linewidth=1.5)
+
+    plt.xlabel('Time [s]')
+    plt.ylabel('Momentum')
+    plt.title('Momentum History (CTSVI / ATSVI / C-ATSVI)')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    filename = f"momentum_{tag}.png"
+    _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
+    return True
+
+
+def plot_etsvi_joint7(tag, dpi_set, joint_idx=7):
+    """
+    仅绘制 ETSVI 的指定关节（1-based 索引）的通用动量随时间变化。
+    默认绘制关节7（joint_idx=7）。
+    """
+    print(f"Generating ETSVI joint {joint_idx} momentum plot...")
+    base = os.path.expanduser('~/ros2_ws/dynamic_ws/src/vi/csv/')
+    params_base = build_params_label(include_lyap=True)
+    csv_dir = os.path.join(base, params_base, 'etsvi')
+
+    mom_path = os.path.join(csv_dir, 'momentum_history.csv')
+    time_path = os.path.join(csv_dir, 'time_history.csv')
+
+    if not os.path.exists(mom_path):
+        print(f"No ETSVI momentum file found at {mom_path}")
+        return None
+
+    try:
+        mom = np.loadtxt(mom_path, delimiter=',')
+        mom = np.atleast_2d(mom).astype(float)
+    except Exception as e:
+        print(f"Failed to read {mom_path}: {e}")
+        return None
+
+    try:
+        t = np.loadtxt(time_path, delimiter=',')
+        t = np.atleast_1d(t).astype(float)
+    except Exception:
+        t = np.arange(mom.shape[0])
+
+    idx0 = joint_idx - 1
+    if idx0 < 0 or idx0 >= mom.shape[1]:
+        print(f"Requested joint index {joint_idx} out of range (available columns={mom.shape[1]})")
+        return None
+
+    _init_fig(figsize=(6,4))
+    plt.plot(t, mom[:, idx0], color='C2', linewidth=2)
+    plt.xlabel('Time [s]')
+    plt.ylabel(f'Momentum (joint {joint_idx})')
+    plt.title(f'ETSVI Joint {joint_idx} Momentum')
+    plt.grid(True, alpha=0.3)
+    filename = f"momentum_etsvi_joint{joint_idx}_{tag}.png"
+    _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
+    return True
 
 def plot_7dof_pendulum():
     # 参数设置
@@ -838,6 +969,12 @@ def plot_results(tag, dpi_set):
 
     # 绘制 平均运行时间 vs 平均能量误差
     plot_runtime_vs_energy(tag, dpi_set)
+
+    # 仅绘制 ETSVI 的关节7 动量（按用户要求）
+    try:
+        plot_etsvi_joint7(tag, dpi_set, joint_idx=7)
+    except Exception as e:
+        print(f"Warning: failed to plot ETSVI joint7 momentum: {e}")
 
     # print("Plotting completed. Close all plot windows to exit.")
 
