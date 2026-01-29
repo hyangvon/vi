@@ -411,13 +411,17 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None, font_sizes=None):
             labels.append(name)
 
         _init_fig(figsize=(6, 6))
-        cmap = plt.get_cmap('tab10')
-        colors = [cmap(i) for i in range(len(labels))]
-        # 不同算法使用不同 marker
-        markers = ['o', 's', '^', 'D', 'v']
-        for i, (x, y, lbl, c) in enumerate(zip(xs, ys, labels, colors)):
-            m = markers[i % len(markers)]
-            plt.scatter(x, y, label=lbl, color=c, s=120, marker=m)
+        # 指定每个算法的绘图样式
+        style_map = {
+            'C-ATSVI': {'color': '#D62728', 'linewidth': 2.0, 'marker': '*', 'mfc': 'auto', 's': 120, 'markersize': 12},
+            'CTSVI': {'color': '#9467BD', 'linewidth': 1.2, 'marker': 'o', 'mfc': 'none', 's': 80, 'markersize': 8},
+            'ATSVI': {'color': '#000000', 'linewidth': 1.2, 'marker': 'x', 'mfc': 'auto', 's': 80, 'markersize': 8},
+        }
+        # 绘制点并标注
+        for x, y, lbl in zip(xs, ys, labels):
+            alg = lbl
+            s = style_map.get(alg, {'color': '#666666', 'linewidth': 1.0, 'marker': 'o', 'mfc': 'auto', 's': 120, 'markersize': 8})
+            plt.scatter(x, y, label=lbl, color=s['color'], s=s.get('s', 120), marker=s['marker'], edgecolors=s['color'], facecolors=(s['mfc'] if s.get('mfc') != 'auto' else s['color']))
             plt.text(x, y, f' {lbl}', verticalalignment='center', fontsize=text_fs)
         # 仅当存在带标签的 artist 时显示图例，避免警告
         handles, leg_labels = plt.gca().get_legend_handles_labels()
@@ -486,17 +490,17 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None, font_sizes=None):
 
         # 绘制折线：每个算法分别为 q0p2 和 q0p4 两组绘制一条线（不同线型）
         _init_fig(figsize=(6, 5.5))
-        cmap = plt.get_cmap('tab10')
-        colors = {alg: cmap(i) for i, alg in enumerate(series.keys())}
-        # 为不同算法分配不同 marker
-        marker_list = ['o', '^', 'D', 'v', 'P', '*', 's']
-        marker_list_2 = ['D', 'v', 'P', '*', 's', 'o', '^']
+        # 定义算法样式
+        style_map = {
+            'C-ATSVI': {'color': '#D62728', 'linewidth': 2.0, 'marker': '*', 'mfc': 'auto', 's': 400, 'markersize': 14},
+            'CTSVI': {'color': '#9467BD', 'linewidth': 1.5, 'marker': 'o', 'mfc': 'none', 's': 120, 'markersize': 8},
+            'ATSVI': {'color': '#000000', 'linewidth': 1.2, 'marker': 'x', 'mfc': 'auto', 's': 120, 'markersize': 8},
+        }
         for i, (alg, data) in enumerate(series.items()):
             rts = np.array(data['rts'])
             maes = np.array(data['maes'])
             lbls = data['labels']
-            m = marker_list[i % len(marker_list)]
-            m2 = marker_list_2[i % len(marker_list_2)]
+            s = style_map.get(alg, {'color': '#666666', 'linewidth': 1.0, 'marker': 'o', 'mfc': 'auto'})
             # 按 q_init 分组 (q0p2 / q0p4)
             mask_q02 = [str(lbl).startswith('q0p2') for lbl in lbls]
             mask_q04 = [str(lbl).startswith('q0p4') for lbl in lbls]
@@ -506,13 +510,10 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None, font_sizes=None):
             rts_q04 = rts[np.array(mask_q04, dtype=bool)]
             maes_q04 = maes[np.array(mask_q04, dtype=bool)]
 
-            # print("rts_q02.size", rts_q02.size)
-            # print("rts_q04.size", rts_q04.size)
-
             if rts_q02.size:
-                plt.plot(rts_q02, maes_q02, marker=m, linestyle='-', label=f'{alg} q0.2', color=colors.get(alg))
+                plt.plot(rts_q02, maes_q02, marker=s['marker'], linestyle='-', label=f'{alg} q0.2', color=s['color'], linewidth=s['linewidth'], markerfacecolor=(s['color'] if s.get('mfc')=='auto' else 'none'), markersize=s.get('markersize', 8))
             if rts_q04.size:
-                plt.plot(rts_q04, maes_q04, marker=m2, linestyle='--', label=f'{alg} q0.4', color=colors.get(alg))
+                plt.plot(rts_q04, maes_q04, marker=s['marker'], linestyle='--', label=f'{alg} q0.4', color=s['color'], linewidth=s['linewidth'], markerfacecolor=(s['color'] if s.get('mfc')=='auto' else 'none'), markersize=s.get('markersize', 8))
 
         # 仅当存在带标签的 artist 时显示图例，避免警告
         handles, leg_labels = plt.gca().get_legend_handles_labels()
@@ -522,8 +523,8 @@ def plot_runtime_vs_energy(tag, dpi_set, csv_paths=None, font_sizes=None):
         # plt.ylim(-0.002, 0.01)
 
     # plt.xlabel('Average Runtime (ms)')
-    plt.xlabel('Total Runtime (ms)', fontsize=label_fs)
-    plt.ylabel('Mean Absolute Energy Error (J)', fontsize=label_fs)
+    plt.xlabel('Total Runtime [ms]', fontsize=label_fs)
+    plt.ylabel('Mean Absolute Energy Error [J]', fontsize=label_fs)
     plt.title('Runtime vs Energy Error', fontsize=title_fs)
     plt.grid(True, alpha=0.3)
     plt.xticks(fontsize=tick_fs)
@@ -862,27 +863,30 @@ def plot_results(tag, dpi_set):
     # plt.plot(time, energy, label='Total Energy')
 
     # 使用调色板和更明显的样式以增强可区分度
-    cmap = plt.get_cmap('tab10')
-    c_ctsvi = cmap(0)
-    c_atsvi = cmap(1)
-    c_etsvi = cmap(2)
+    # cmap = plt.get_cmap('tab10')
+    # c_ctsvi = cmap(0)
+    # c_atsvi = cmap(1)
+    # c_etsvi = cmap(2)
 
+    c_ctsvi = '#9467BD'
+    c_atsvi = '#000000'
+    c_etsvi = '#D62728'
 
     # CTSVI
-    plt.plot(time_ctsvi, delta_energy_ctsvi, label='ΔEnergy of CTSVI', color=c_ctsvi, linestyle='-', linewidth=2)
+    plt.plot(time_ctsvi, delta_energy_ctsvi, label='ΔEnergy of CTSVI', color=c_ctsvi, linestyle=':', linewidth=1.5)
 
     # ATSVI
-    plt.plot(time_atsvi, delta_energy_atsvi, label='ΔEnergy of ATSVI', color=c_atsvi, linestyle='-.', linewidth=2)
+    plt.plot(time_atsvi, delta_energy_atsvi, label='ΔEnergy of ATSVI', color=c_atsvi, linestyle='-', linewidth=1.2)
 
     # ETSVI
-    plt.plot(time_etsvi, delta_energy_etsvi, label='ΔEnergy of C-ATSVI', color=c_etsvi, linestyle='--', linewidth=2)
+    plt.plot(time_etsvi, delta_energy_etsvi, label='ΔEnergy of C-ATSVI', color=c_etsvi, linestyle='-', linewidth=2)
 
     plt.xlabel('Time [s]')
     plt.ylabel('Energy [J]')
     plt.title('Energy evolution')
     plt.legend(loc='upper left')
     plt.grid(True)
-    plt.ylim(-0.015, 0.015)
+    plt.ylim(-0.01, 0.01)
     filename = f"energy_{tag}.png"
     _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
     #
@@ -906,8 +910,8 @@ def plot_results(tag, dpi_set):
 
     # ---------- 5. 绘制timestep ----------
     _init_fig()
-    plt.plot(time_atsvi, step_atsvi, label='Time Step of ATSVI', linestyle='-.', linewidth=2)
-    plt.plot(time_etsvi, step_etsvi, label='Time Step of C-ATSVI', linestyle='--', linewidth=2)
+    plt.plot(time_atsvi, step_atsvi, label='Time Step of ATSVI', color=c_atsvi, linestyle='-', linewidth=1.2)
+    plt.plot(time_etsvi, step_etsvi, label='Time Step of C-ATSVI', color=c_etsvi, linestyle='-', linewidth=2)
     plt.xlabel('Time [s]')
     plt.ylabel('Step')
     plt.title('Adaptive Time Step')
@@ -920,15 +924,15 @@ def plot_results(tag, dpi_set):
     _init_fig()
     # CTSVI
     # plt.plot(time_ctsvi, tcp_ctsvi[:, 0], label='px_ctsvi', linestyle='-', linewidth=2)
-    plt.plot(time_ctsvi, tcp_ctsvi[:, 2], label='position Z of CTSVI', color=c_ctsvi, linestyle='-', linewidth=2)
+    plt.plot(time_ctsvi, tcp_ctsvi[:, 2], label='position Z of CTSVI', color=c_ctsvi, linestyle=':', linewidth=1.5)
 
     # ATSVI
     # plt.plot(time_atsvi, tcp_atsvi[:, 0], label='px_atsvi', linestyle='-.', linewidth=2)
-    plt.plot(time_atsvi, tcp_atsvi[:, 2], label='position Z of ATSVI', color=c_atsvi, linestyle='-.', linewidth=2)
+    plt.plot(time_atsvi, tcp_atsvi[:, 2], label='position Z of ATSVI', color=c_atsvi, linestyle='-', linewidth=1.2)
     
     # ETSVI
     # plt.plot(time_etsvi, tcp_etsvi[:, 0], label='px_etsvi', linestyle='--', linewidth=2)
-    plt.plot(time_etsvi, tcp_etsvi[:, 2], label='position Z of C-ATSVI', color=c_etsvi, linestyle='--', linewidth=2)
+    plt.plot(time_etsvi, tcp_etsvi[:, 2], label='position Z of C-ATSVI', color=c_etsvi, linestyle='-', linewidth=2)
 
     plt.xlabel('Time [s]')
     plt.ylabel('Position [m]')

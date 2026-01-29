@@ -184,7 +184,7 @@ def plot_heatmap(alphas, betas, grid, out_path, vmin=None, vmax=None, log=False)
     ax.set_ylabel('beta')
     ax.set_title('C-ATSVI Mean Absolute Energy Error')
     cbar = fig.colorbar(im, ax=ax)
-    cbar.set_label('Mean |ΔEnergy| (J)')
+    cbar.set_label('Mean |ΔEnergy| [J]')
     # nicer colorbar tick formatting
     try:
         from matplotlib.ticker import ScalarFormatter, LogFormatterSciNotation

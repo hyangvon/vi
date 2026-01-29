@@ -66,8 +66,8 @@ def plot_7dof_chain(x, z, save_path=None, title='7-DoF Pendulum Initial Configur
     # 注释与美化
     ax.set_aspect('equal')
     ax.grid(True, linestyle=':', alpha=0.6)
-    ax.set_xlabel('X Position (m)', fontsize=12)
-    ax.set_ylabel('Z Position (m)', fontsize=12)
+    ax.set_xlabel('X Position [m]', fontsize=13)
+    ax.set_ylabel('Z Position [m]', fontsize=13)
     ax.set_title(f"{title}\n($q_i = 0.2$ rad for all joints)", fontsize=TITLE_FONT_SIZE, fontweight=TITLE_FONT_WEIGHT)
     ax.legend()
 
