@@ -222,7 +222,8 @@ def main():
     # betas = [round(0.01 * i, 3) for i in range(1, 9)]
 
     alphas = list(np.round(np.linspace(0.05, 1.0, 20), 3))
-    betas = list(np.round(np.linspace(0.005, 0.1, 20), 4))
+    # betas = list(np.round(np.linspace(0.005, 0.1, 20), 4))
+    betas = list(np.round(np.linspace(0.0, 0.1, 21), 4))
 
     grid = np.zeros((len(betas), len(alphas))) * np.nan
 
