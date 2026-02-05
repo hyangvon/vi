@@ -824,9 +824,20 @@ def plot_results(tag, dpi_set):
         time_ctsvi = np.loadtxt(os.path.join(csv_dir_ctsvi_ad, 'time_history.csv'), delimiter=',')
         time_atsvi = np.loadtxt(os.path.join(csv_dir_atsvi_ad, 'time_history.csv'), delimiter=',')
         time_etsvi = np.loadtxt(os.path.join(csv_dir_etsvi, 'time_history.csv'), delimiter=',')
+        # 额外读取 beta=0 的 C-ATSVI（no IMP）数据，用于对比曲线
+        try:
+            beta0_dir = os.path.join(base, 'q0p2_dt0p01_T40_a0p4_b0', 'etsvi')
+            delta_energy_beta0 = np.loadtxt(os.path.join(beta0_dir, 'delta_energy_history.csv'), delimiter=',')
+            time_beta0 = np.loadtxt(os.path.join(beta0_dir, 'time_history.csv'), delimiter=',')
+            tcp_beta0 = np.loadtxt(os.path.join(beta0_dir, 'ee_history.csv'), delimiter=',')
+        except Exception:
+            delta_energy_beta0 = None
+            time_beta0 = None
+            tcp_beta0 = None
         # momentum = np.loadtxt(os.path.join(csv_dir, 'momentum_history.csv'), delimiter=',')
         step_atsvi = np.loadtxt(os.path.join(csv_dir_atsvi_ad, 'h_history.csv'), delimiter=',')
         step_etsvi = np.loadtxt(os.path.join(csv_dir_etsvi, 'h_history.csv'), delimiter=',')
+        step_beta0 = np.loadtxt(os.path.join(beta0_dir, 'h_history.csv'), delimiter=',')
     except Exception as e:
         print(f"Error reading CSV files: {e}")
         return False
@@ -881,6 +892,13 @@ def plot_results(tag, dpi_set):
     # ETSVI
     plt.plot(time_etsvi, delta_energy_etsvi, label='ΔEnergy of C-ATSVI', color=c_etsvi, linestyle='-', linewidth=2)
 
+    # # C-ATSVI (beta=0, no IMP) 对比曲线
+    # if delta_energy_beta0 is not None and time_beta0 is not None:
+    #     try:
+    #         plt.plot(time_beta0, delta_energy_beta0, label='ΔEnergy of C-ATSVI (beta=0)', color='#FF6666', linestyle='-.', linewidth=1.5)
+    #     except Exception:
+    #         pass
+
     plt.ticklabel_format(style='sci', scilimits=(0,0), axis='y', useMathText=True)
     plt.subplots_adjust(left=0.11, right=0.98, top=0.9, bottom=0.15)
     plt.xlabel('Time [s]')
@@ -888,9 +906,31 @@ def plot_results(tag, dpi_set):
     plt.title('Energy evolution')
     plt.legend(loc='upper left')
     plt.grid(True)
+    plt.xlim(0, 40)
     plt.ylim(-0.01, 0.01)
     filename = f"energy_{tag}.png"
     _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
+
+
+    # ---------- 绘制能量曲线（imp对比） ----------
+    _init_fig()
+
+    # ETSVI
+    plt.plot(time_etsvi, delta_energy_etsvi, label='ΔEnergy of C-ATSVI', color='#D62728', linestyle='-', linewidth=2)
+
+    # ETSVI no IMP
+    plt.plot(time_beta0, delta_energy_beta0, label='ΔEnergy of C-ATSVI (no IMP)', color='#000000', linestyle='-.', linewidth=1.5)
+
+    plt.xlabel('Time [s]')
+    plt.ylabel('Energy [J]')
+    plt.title('Energy evolution')
+    plt.legend(loc='upper left')
+    plt.grid(True)
+    # plt.ylim(-0.001, 0.001)
+    filename = f"energy_no_imp_{tag}.png"
+    _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
+
+
     #
     # # ---------- 4. 相平面图（q vs qdot） ----------
     # dt = time[1] - time[0]
@@ -915,13 +955,22 @@ def plot_results(tag, dpi_set):
     plt.plot(time_atsvi, step_atsvi, label='Time Step of ATSVI', color=c_atsvi, linestyle='-', linewidth=1.2)
     plt.plot(time_etsvi, step_etsvi, label='Time Step of C-ATSVI', color=c_etsvi, linestyle='-', linewidth=2)
 
+    # C-ATSVI (beta=0, no IMP) 对比曲线
+    # if step_beta0 is not None and time_beta0 is not None:
+    #     try:
+    #         plt.plot(time_beta0, step_beta0, label='Time Step of C-ATSVI (beta=0)', color='#FF6666', linestyle='-.', linewidth=1.5)
+    #     except Exception:
+    #         pass
+
     plt.ticklabel_format(style='sci', scilimits=(0,0), axis='y', useMathText=True)
     plt.subplots_adjust(left=0.11, right=0.98, top=0.9, bottom=0.15)
     plt.xlabel('Time [s]')
-    plt.ylabel('Step')
+    plt.ylabel('Step [s]')
     plt.title('Adaptive Time Step')
     plt.legend()
     plt.grid(True)
+    plt.xlim(0, 40)
+    plt.xlim(0, 40)
     filename = f"step_{tag}.png"
     _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
 
@@ -939,6 +988,13 @@ def plot_results(tag, dpi_set):
     # plt.plot(time_etsvi, tcp_etsvi[:, 0], label='px_etsvi', linestyle='--', linewidth=2)
     plt.plot(time_etsvi, tcp_etsvi[:, 2], label='position Z of C-ATSVI', color=c_etsvi, linestyle='-', linewidth=2)
 
+    # C-ATSVI (beta=0, no IMP) 对比曲线
+    if tcp_beta0 is not None and time_beta0 is not None:
+        try:
+            plt.plot(time_beta0, tcp_beta0[:, 2], label='position Z of C-ATSVI (beta=0)', color='#FF6666', linestyle='-.', linewidth=1.5)
+        except Exception:
+            pass
+
     plt.ticklabel_format(style='sci', scilimits=(0,0), axis='y', useMathText=True)
     plt.subplots_adjust(left=0.11, right=0.98, top=0.9, bottom=0.15)
     plt.xlabel('Time [s]')
@@ -946,6 +1002,7 @@ def plot_results(tag, dpi_set):
     plt.title('Tip Position')
     plt.legend(loc='upper left')
     plt.grid(True)
+    plt.xlim(0, 40)
     plt.ylim(-8, -3)
     filename = f"tcp_{tag}.png"
     _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)

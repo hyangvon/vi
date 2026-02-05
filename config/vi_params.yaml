@@ -15,7 +15,7 @@ atsvi_ad_node:
 etsvi_node:
   ros__parameters:
     lyap_alpha: 0.4
-    lyap_beta: 0.4
+    lyap_beta: 0.04
 
 etsvi_op_node:
   ros__parameters:

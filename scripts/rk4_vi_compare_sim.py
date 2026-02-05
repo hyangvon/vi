@@ -389,6 +389,7 @@ def plot_results(tag, dpi_set):
     plt.title('Energy evolution')
     plt.legend(loc='upper left')
     plt.grid(True)
+    plt.xlim(0, 40)
     # plt.ylim(-0.05, 0.05)
     filename = f"energy_{tag}.png"
     _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
@@ -422,6 +423,7 @@ def plot_results(tag, dpi_set):
     plt.title('Tip Position')
     plt.legend(loc='upper left')
     plt.grid(True)
+    plt.xlim(0, 40)
     plt.ylim(-8, -3)
     filename = f"tcp_{tag}.png"
     _save_fig(tag, filename, dpi_set if dpi_set else DEFAULT_DPI, show=False)
